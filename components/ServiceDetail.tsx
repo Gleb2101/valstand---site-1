@@ -27,12 +27,12 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
 Мы не делаем работу "ради галочки". Если в процессе анализа мы понимаем, что изначальная гипотеза не сработает, мы честно говорим об этом и предлагаем альтернативу. Наш приоритет — окупаемость ваших инвестиций.`;
 
   return (
-    <div className="min-h-screen bg-brand-dark pt-20 animate-fade-in">
+    <div className="min-h-screen bg-slate-50 pt-20 animate-fade-in">
       {/* Navigation Breadcrumb */}
       <div className="container mx-auto px-4 py-6">
         <button 
           onClick={onBack}
-          className="flex items-center text-gray-400 hover:text-brand-yellow transition-colors gap-2"
+          className="flex items-center text-slate-500 hover:text-brand-orange transition-colors gap-2"
         >
           <ArrowLeft size={20} />
           Назад к услугам
@@ -41,47 +41,65 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
 
       {/* Hero Section */}
       <section className="relative overflow-hidden py-12 md:py-20">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-brand-yellow/5 skew-x-12 transform origin-top blur-3xl -z-10"></div>
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-brand-yellow/10 skew-x-12 transform origin-top blur-3xl -z-10"></div>
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-8">
+          <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-8">
             {service.title}
           </h1>
-          <div className="text-lg md:text-xl text-gray-300 max-w-4xl leading-relaxed border-l-4 border-brand-orange pl-6 whitespace-pre-wrap font-light">
+          <div className="text-lg md:text-xl text-slate-600 max-w-4xl leading-relaxed border-l-4 border-brand-orange pl-6 whitespace-pre-wrap font-light">
             {service.fullDescription}
           </div>
         </div>
       </section>
 
       {/* Benefits Grid */}
-      <section className="py-16 bg-brand-surface/30">
+      <section className="py-16 bg-white border-y border-slate-200">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold text-white mb-10 flex items-center gap-3">
-            <Zap className="text-brand-yellow" />
+          <h2 className="text-2xl font-bold text-slate-900 mb-10 flex items-center gap-3">
+            <Zap className="text-brand-orange" />
             Ключевые преимущества
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {service.benefits.map((benefit, index) => (
-              <div key={index} className="glass-panel p-6 rounded-xl border-t border-white/10 hover:border-brand-yellow/30 transition-colors">
-                <h3 className="text-xl font-bold text-brand-yellow mb-3">{benefit.title}</h3>
-                <p className="text-gray-400">{benefit.desc}</p>
+              <div key={index} className="glass-panel p-6 rounded-xl border border-slate-200 hover:border-brand-orange/30 transition-colors shadow-sm">
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{benefit.title}</h3>
+                <p className="text-slate-600">{benefit.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Process Steps (Accordion) */}
-      <section className="py-20">
+      {/* Included Features List (New) */}
+      <section className="py-12 bg-slate-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-white mb-12 text-center">Как мы работаем</h2>
+           <h2 className="text-2xl font-bold text-slate-900 mb-8 flex items-center gap-3">
+            <CheckCircle className="text-brand-orange" />
+            Что входит в услугу
+          </h2>
+          <div className="grid md:grid-cols-2 gap-4">
+             {service.features.map((feature, index) => (
+               <div key={index} className="flex items-center gap-3 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                 <div className="w-2 h-2 rounded-full bg-brand-orange shrink-0"></div>
+                 <span className="text-slate-700 font-medium">{feature}</span>
+               </div>
+             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Process Steps (Accordion) */}
+      <section className="py-20 bg-slate-50 border-t border-slate-200">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl font-bold text-slate-900 mb-12 text-center">Как мы работаем</h2>
           <div className="max-w-4xl mx-auto space-y-4">
             {service.process.map((step, index) => {
               const isOpen = expandedStepIndex === index;
               return (
                 <div 
                   key={index} 
-                  className={`glass-panel rounded-2xl border transition-all duration-300 overflow-hidden ${
-                    isOpen ? 'border-brand-yellow/50 bg-white/5' : 'border-white/5 hover:border-white/20'
+                  className={`bg-white rounded-2xl border transition-all duration-300 overflow-hidden shadow-sm ${
+                    isOpen ? 'border-brand-orange ring-1 ring-brand-orange/20' : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <button 
@@ -92,23 +110,23 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
                        <div className={`w-12 h-12 rounded-full border-2 flex items-center justify-center shrink-0 font-bold text-lg transition-colors ${
                          isOpen 
                            ? 'bg-brand-orange text-white border-brand-orange' 
-                           : 'bg-brand-surface text-gray-500 border-white/10'
+                           : 'bg-slate-100 text-slate-500 border-slate-200'
                        }`}>
                          {index + 1}
                        </div>
                        <div>
-                         <h3 className={`text-xl font-bold transition-colors ${isOpen ? 'text-brand-yellow' : 'text-white'}`}>
+                         <h3 className={`text-xl font-bold transition-colors ${isOpen ? 'text-brand-orange' : 'text-slate-900'}`}>
                            {step.step}
                          </h3>
-                         <p className="text-sm text-gray-400 mt-1 line-clamp-1 hidden md:block">
+                         <p className="text-sm text-slate-500 mt-1 line-clamp-1 hidden md:block">
                            {step.desc}
                          </p>
                        </div>
                     </div>
                     {isOpen ? (
-                      <ChevronUp className="text-brand-yellow shrink-0" />
+                      <ChevronUp className="text-brand-orange shrink-0" />
                     ) : (
-                      <ChevronDown className="text-gray-500 shrink-0" />
+                      <ChevronDown className="text-slate-400 shrink-0" />
                     )}
                   </button>
 
@@ -117,10 +135,10 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
                   }`}>
                     <div className="px-6 pb-8 pt-2 pl-[5.5rem]">
                       {/* Short Desc (Mobile) */}
-                      <p className="text-gray-400 mb-4 md:hidden">{step.desc}</p>
+                      <p className="text-slate-600 mb-4 md:hidden">{step.desc}</p>
                       
                       {/* Detailed Description */}
-                      <div className="prose prose-invert prose-sm max-w-none text-gray-300 leading-relaxed mb-6 whitespace-pre-wrap">
+                      <div className="prose prose-slate max-w-none text-slate-600 leading-relaxed mb-6 whitespace-pre-wrap">
                         {step.details ? step.details : defaultProcessText}
                       </div>
 
@@ -131,8 +149,8 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
                              <ImageIcon size={14} /> 
                              Пример реализации
                            </p>
-                           <div className="rounded-xl overflow-hidden border border-white/10 relative group">
-                             <div className="absolute inset-0 bg-brand-dark/10 group-hover:bg-transparent transition-colors"></div>
+                           <div className="rounded-xl overflow-hidden border border-slate-200 relative group shadow-md">
+                             <div className="absolute inset-0 bg-slate-900/5 group-hover:bg-transparent transition-colors"></div>
                              <img 
                                src={step.exampleImage} 
                                alt={`Example for ${step.step}`} 
@@ -151,7 +169,7 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
       </section>
 
       {/* CTA / Contact Form */}
-      <div className="bg-gradient-to-t from-brand-dark to-brand-surface/20">
+      <div className="bg-gradient-to-t from-slate-100 to-white">
         <ContactForm selectedService={service.title} onNavigate={onNavigate} />
       </div>
     </div>

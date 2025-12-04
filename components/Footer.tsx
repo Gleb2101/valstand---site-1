@@ -8,12 +8,12 @@ interface FooterProps {
 
 const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   return (
-    <footer className="bg-black py-12 border-t border-white/10 text-gray-400 text-sm">
+    <footer className="bg-slate-900 py-12 border-t border-slate-800 text-slate-400 text-sm">
       <div className="container mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
             <span className="font-bold text-xl text-white">Valstand</span>
-            <span className="w-1 h-1 rounded-full bg-gray-600"></span>
+            <span className="w-1 h-1 rounded-full bg-slate-600"></span>
             <span>Since 2024</span>
           </div>
           
@@ -24,7 +24,6 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             >
               Политика конфиденциальности
             </button>
-            <a href="#" className="hover:text-brand-yellow transition-colors">Договор оферты</a>
             <button
               onClick={() => onNavigate('admin')}
               className="opacity-20 hover:opacity-100 transition-opacity flex items-center gap-1"

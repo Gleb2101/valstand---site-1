@@ -10,22 +10,21 @@ const GlobalPopup: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const popups = dataManager.getPopups();
-    // Find a popup that is active
-    // In a real scenario, you might have complex logic (once per session, specific pages)
-    // Here we just take the first active popup
-    const target = popups.find(p => p.isActive);
+    const load = async () => {
+        const popups = await dataManager.getPopups();
+        const target = popups.find(p => p.isActive);
 
-    if (target) {
-      // Check session storage to avoid spamming user on refresh
-      const seenKey = `valstand_popup_seen_${target.id}`;
-      if (!sessionStorage.getItem(seenKey)) {
-        setTimeout(() => {
-          setActivePopup(target);
-          setIsOpen(true);
-        }, (target.delaySeconds || 0) * 1000);
-      }
-    }
+        if (target) {
+            const seenKey = `valstand_popup_seen_${target.id}`;
+            if (!sessionStorage.getItem(seenKey)) {
+                setTimeout(() => {
+                setActivePopup(target);
+                setIsOpen(true);
+                }, (target.delaySeconds || 0) * 1000);
+            }
+        }
+    };
+    load();
   }, []);
 
   const handleClose = () => {
@@ -75,8 +74,6 @@ const GlobalPopup: React.FC = () => {
             {activePopup.hasForm && (
               <div className="bg-black/20 p-4 rounded-xl">
                 <p className="text-sm text-gray-400 text-center mb-4">Оставьте заявку и мы свяжемся с вами</p>
-                {/* Simplified inline form logic re-using ContactForm might be too heavy visually, 
-                    so we create a mini form here or render ContactForm with specific props */}
                 <MiniContactForm service={activePopup.title} onSuccess={handleClose} />
               </div>
             )}
@@ -103,9 +100,9 @@ const MiniContactForm: React.FC<{ service: string; onSuccess: () => void }> = ({
     const [phone, setPhone] = useState('');
     const [submitted, setSubmitted] = useState(false);
   
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      dataManager.addLead({ name, phone, service: `POPUP: ${service}` });
+      await dataManager.addLead({ name, phone, service: `POPUP: ${service}` });
       setSubmitted(true);
       setTimeout(onSuccess, 2000);
     };

@@ -82,15 +82,35 @@ export interface Popup {
   delaySeconds: number;
 }
 
+export interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string; // HTML
+  image: string;
+  category: string;
+  date: string;
+  author: string;
+}
+
 export interface PageSEO {
   title: string;
   description: string;
+  keywords?: string;
+  ogImage?: string;
 }
 
 export interface SiteSettings {
   headerCode: string; // HTML/JS for <head>
   footerCode: string; // HTML/JS for end of <body>
   seo: Record<string, PageSEO>;
+}
+
+export interface StoredImage {
+  id: string;
+  name: string;
+  data: string; // base64
+  date: string;
 }
 
 export enum LoadingState {

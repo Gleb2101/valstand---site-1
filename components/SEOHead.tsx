@@ -10,39 +10,60 @@ interface SEOHeadProps {
 
 const SEOHead: React.FC<SEOHeadProps> = ({ pageKey, dynamicTitle, dynamicDescription }) => {
   useEffect(() => {
-    const settings = dataManager.getSettings();
-    const seoConfig = settings.seo[pageKey];
+    const load = async () => {
+        const settings = await dataManager.getSettings();
+        const seoConfig = settings.seo[pageKey];
 
-    // Priority: CMS Config > Dynamic Prop > Default Fallback
-    // If CMS has a title for this specific key (e.g. "service:targeting"), use it.
-    // Otherwise use dynamicTitle (e.g. "Targeting") and append suffix.
-    
-    let title = 'Valstand Agency';
-    if (seoConfig && seoConfig.title && seoConfig.title.trim() !== '') {
-      title = seoConfig.title;
-    } else if (dynamicTitle) {
-      title = `${dynamicTitle} | Valstand`;
-    }
+        // --- 1. Title ---
+        let title = 'Valstand Agency';
+        if (seoConfig && seoConfig.title && seoConfig.title.trim() !== '') {
+        title = seoConfig.title;
+        } else if (dynamicTitle) {
+        title = `${dynamicTitle} | Valstand`;
+        }
+        document.title = title;
 
-    // Determine Description
-    let description = '';
-    if (seoConfig && seoConfig.description && seoConfig.description.trim() !== '') {
-      description = seoConfig.description;
-    } else if (dynamicDescription) {
-      description = dynamicDescription;
-    }
+        // --- 2. Description ---
+        let description = '';
+        if (seoConfig && seoConfig.description && seoConfig.description.trim() !== '') {
+        description = seoConfig.description;
+        } else if (dynamicDescription) {
+        description = dynamicDescription;
+        }
 
-    // Update Document Title
-    document.title = title;
+        // --- 3. Keywords & Image ---
+        const keywords = seoConfig?.keywords || '';
+        const ogImage = seoConfig?.ogImage || '';
 
-    // Update Meta Description
-    let metaDescription = document.querySelector('meta[name="description"]');
-    if (!metaDescription) {
-      metaDescription = document.createElement('meta');
-      metaDescription.setAttribute('name', 'description');
-      document.head.appendChild(metaDescription);
-    }
-    metaDescription.setAttribute('content', description);
+        // --- Helper to update or create meta tags ---
+        const updateMeta = (nameOrProperty: string, content: string, isProperty = false) => {
+        const attr = isProperty ? 'property' : 'name';
+        let element = document.querySelector(`meta[${attr}="${nameOrProperty}"]`);
+        
+        if (content) {
+            if (!element) {
+            element = document.createElement('meta');
+            element.setAttribute(attr, nameOrProperty);
+            document.head.appendChild(element);
+            }
+            element.setAttribute('content', content);
+        } else if (element) {
+            element.remove();
+        }
+        };
+
+        updateMeta('description', description);
+        updateMeta('keywords', keywords);
+        updateMeta('og:title', title, true);
+        updateMeta('og:description', description, true);
+        updateMeta('og:image', ogImage, true);
+        updateMeta('og:type', 'website', true);
+        updateMeta('twitter:card', 'summary_large_image');
+        updateMeta('twitter:title', title);
+        updateMeta('twitter:description', description);
+        if (ogImage) updateMeta('twitter:image', ogImage);
+    };
+    load();
 
   }, [pageKey, dynamicTitle, dynamicDescription]);
 

@@ -17,8 +17,8 @@
               brand: {
                 yellow: '#FFB800',
                 orange: '#FF8A00',
-                dark: '#0F172A',
-                surface: '#1E293B',
+                dark: '#0F172A', // Keeping as a dark accent/text color
+                surface: '#F1F5F9', // Light surface
               }
             }
           }
@@ -30,14 +30,15 @@
         scroll-behavior: smooth;
       }
       body {
-        background-color: #0F172A;
-        color: white;
+        background-color: #F8FAFC; /* Slate-50 */
+        color: #0F172A; /* Slate-900 */
       }
       .glass-panel {
-        background: rgba(30, 41, 59, 0.7);
+        background: rgba(255, 255, 255, 0.85);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(226, 232, 240, 0.8); /* Slate-200 */
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
       }
       .text-gradient {
         background: linear-gradient(to right, #FFB800, #FF8A00);
@@ -52,12 +53,19 @@
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "vite": "https://aistudiocdn.com/vite@^7.2.6",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "mysql2/": "https://aistudiocdn.com/mysql2@^3.15.3/",
+    "express": "https://aistudiocdn.com/express@^5.2.1",
+    "body-parser": "https://aistudiocdn.com/body-parser@^2.2.1",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

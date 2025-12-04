@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, CheckCircle } from 'lucide-react';
 import { SERVICES, PACKAGES } from '../constants';
@@ -42,12 +41,12 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
   };
 
   return (
-    <section id="contact" className={`${isPage ? 'py-12' : 'py-24'} bg-gradient-to-b from-brand-dark to-black relative`}>
+    <section id="contact" className={`${isPage ? 'py-12' : 'py-24'} bg-gradient-to-b from-slate-100 to-white relative`}>
       <div className="container mx-auto px-4">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           
           <div>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
+            <h2 className="text-4xl md:text-5xl font-bold mb-6 text-slate-900">
               {isPage ? (
                 <>Наши <span className="text-gradient">Контакты</span></>
               ) : (
@@ -58,49 +57,39 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                 )
               )}
             </h2>
-            <p className="text-gray-400 mb-10 text-lg">
+            <p className="text-slate-600 mb-10 text-lg">
               Оставьте заявку, и мы проведем бесплатный аудит ваших текущих показателей и предложим план роста.
             </p>
 
             <div className="space-y-6">
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-brand-yellow shrink-0">
+                <div className="w-12 h-12 bg-white rounded-full border border-slate-200 flex items-center justify-center text-brand-orange shrink-0 shadow-sm">
                   <Phone size={24} />
                 </div>
                 <div>
-                  <h4 className="text-white font-bold mb-1">Телефон</h4>
-                  <p className="text-gray-400">+7 (999) 000-00-00</p>
+                  <h4 className="text-slate-900 font-bold mb-1">Телефон</h4>
+                  <p className="text-slate-600">+7 (499) 110-07-88</p>
                 </div>
               </div>
               
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-brand-yellow shrink-0">
+                <div className="w-12 h-12 bg-white rounded-full border border-slate-200 flex items-center justify-center text-brand-orange shrink-0 shadow-sm">
                   <Mail size={24} />
                 </div>
                 <div>
-                  <h4 className="text-white font-bold mb-1">Email</h4>
-                  <p className="text-gray-400">hello@valstand.agency</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center text-brand-yellow shrink-0">
-                  <MapPin size={24} />
-                </div>
-                <div>
-                  <h4 className="text-white font-bold mb-1">Офис</h4>
-                  <p className="text-gray-400">Москва, Пресненская наб., 12 (Москва-Сити)</p>
+                  <h4 className="text-slate-900 font-bold mb-1">Email</h4>
+                  <p className="text-slate-600">info@valstand.ru</p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-8 md:p-10 shadow-2xl">
+          <div className="bg-white rounded-3xl p-8 md:p-10 shadow-2xl border border-slate-100">
             {submitted ? (
               <div className="h-full flex flex-col items-center justify-center text-center py-20">
                 <CheckCircle className="text-green-500 w-20 h-20 mb-6" />
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">Заявка отправлена!</h3>
-                <p className="text-gray-600">Менеджер Valstand свяжется с вами в течение 15 минут.</p>
+                <h3 className="text-2xl font-bold text-slate-900 mb-2">Заявка отправлена!</h3>
+                <p className="text-slate-600">Менеджер Valstand свяжется с вами в течение 15 минут.</p>
                 <button 
                   onClick={() => setSubmitted(false)}
                   className="mt-8 text-brand-orange font-semibold hover:underline"
@@ -111,35 +100,35 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Имя</label>
+                  <label className="block text-slate-700 font-semibold mb-2">Имя</label>
                   <input 
                     type="text" 
                     required 
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-gray-900"
+                    className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
                     placeholder="Иван Иванов"
                   />
                 </div>
                 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Телефон</label>
+                  <label className="block text-slate-700 font-semibold mb-2">Телефон</label>
                   <input 
                     type="tel" 
                     required 
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-gray-900"
+                    className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
                     placeholder="+7 (---) --- -- --"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-2">Интересующая услуга</label>
+                  <label className="block text-slate-700 font-semibold mb-2">Интересующая услуга</label>
                   <select 
                     value={interest}
                     onChange={(e) => setInterest(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-gray-900"
+                    className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
                   >
                     <optgroup label="Основные услуги">
                       {SERVICES.map((s) => (
@@ -163,10 +152,10 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                       type="checkbox"
                       checked={privacyAccepted}
                       onChange={(e) => setPrivacyAccepted(e.target.checked)}
-                      className="h-5 w-5 text-brand-orange border-gray-300 rounded focus:ring-brand-orange cursor-pointer"
+                      className="h-5 w-5 text-brand-orange border-slate-300 rounded focus:ring-brand-orange cursor-pointer"
                     />
                   </div>
-                  <label htmlFor="privacy-policy" className="text-sm text-gray-500 leading-tight cursor-pointer">
+                  <label htmlFor="privacy-policy" className="text-sm text-slate-500 leading-tight cursor-pointer">
                     Я соглашаюсь с{' '}
                     <span 
                       onClick={(e) => {
@@ -188,7 +177,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                   className={`w-full py-4 font-bold rounded-lg transition-all transform ${
                     privacyAccepted
                       ? 'bg-gradient-to-r from-brand-yellow to-brand-orange text-white hover:shadow-lg hover:shadow-orange-500/30 hover:-translate-y-1'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   Получить консультацию
