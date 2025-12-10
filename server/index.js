@@ -22,6 +22,84 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
+// --- Database Setup Route ---
+app.get('/setup', async (req, res) => {
+    try {
+        const queries = [
+            // 1. Leads
+            `CREATE TABLE IF NOT EXISTS leads (
+                id VARCHAR(50) PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                phone VARCHAR(50) NOT NULL,
+                service VARCHAR(255),
+                status VARCHAR(50) DEFAULT 'new',
+                date DATETIME
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+            // 2. Settings
+            `CREATE TABLE IF NOT EXISTS settings (
+                setting_key VARCHAR(50) PRIMARY KEY,
+                data LONGTEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+            // 3. Categories
+            `CREATE TABLE IF NOT EXISTS categories (
+                name VARCHAR(100) PRIMARY KEY
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+            // 4. Simple Data Tables (Testimonials, Team, Popups)
+            `CREATE TABLE IF NOT EXISTS testimonials (
+                id VARCHAR(50) PRIMARY KEY, 
+                data LONGTEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+            
+            `CREATE TABLE IF NOT EXISTS team (
+                id VARCHAR(50) PRIMARY KEY, 
+                data LONGTEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+            `CREATE TABLE IF NOT EXISTS popups (
+                id VARCHAR(50) PRIMARY KEY, 
+                data LONGTEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+            // 5. Complex Data Tables (Cases, Blog)
+            `CREATE TABLE IF NOT EXISTS cases (
+                id VARCHAR(50) PRIMARY KEY,
+                title VARCHAR(255),
+                data LONGTEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+            `CREATE TABLE IF NOT EXISTS blog_posts (
+                id VARCHAR(50) PRIMARY KEY,
+                title VARCHAR(255),
+                category VARCHAR(100),
+                data LONGTEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+            // 6. Images
+            `CREATE TABLE IF NOT EXISTS images (
+                id VARCHAR(50) PRIMARY KEY,
+                name VARCHAR(255),
+                data LONGTEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+        ];
+
+        for (const query of queries) {
+            await pool.query(query);
+        }
+
+        res.send(`
+            <h1>База данных успешно настроена!</h1>
+            <p>Все таблицы созданы. Теперь вы можете пользоваться сайтом.</p>
+            <a href="/">Вернуться на главную</a>
+        `);
+    } catch (error) {
+        console.error("Setup Error:", error);
+        res.status(500).send(`<h1>Ошибка настройки БД</h1><pre>${error.message}</pre>`);
+    }
+});
+
 // Helper for generic CRUD
 const createCrudHandlers = (table, isJsonData = true) => {
     // GET ALL
