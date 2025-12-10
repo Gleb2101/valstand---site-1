@@ -9,7 +9,7 @@ const PORT = 3001;
 
 // Middleware
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' })); // Increased limit for images
+app.use(bodyParser.json({ limit: '50mb' }));
 
 // Database Connection
 const pool = mysql.createPool({
@@ -29,19 +29,19 @@ const createCrudHandlers = (table, isJsonData = true) => {
         try {
             const [rows] = await pool.query(`SELECT * FROM ${table}`);
             if (isJsonData) {
-                // Parse JSON data column back to object
                 const items = rows.map(r => {
-                    const parsed = JSON.parse(r.data);
-                    // Ensure ID from DB matches object ID if needed, 
-                    // generally we trust the JSON blob but DB ID is source of truth
-                    return parsed;
+                    try {
+                        return JSON.parse(r.data);
+                    } catch (e) {
+                        return { id: r.id, error: 'Corrupt Data' };
+                    }
                 });
                 res.json(items);
             } else {
                 res.json(rows);
             }
         } catch (error) {
-            console.error(error);
+            console.error(`GET ${table} Error:`, error);
             res.status(500).json({ error: error.message });
         }
     });
@@ -56,28 +56,36 @@ const createCrudHandlers = (table, isJsonData = true) => {
 
             const dataStr = JSON.stringify(item);
             
-            // Check existence
-            const [exists] = await pool.query(`SELECT id FROM ${table} WHERE id = ?`, [id]);
+            // Using ON DUPLICATE KEY UPDATE pattern for atomic upsert
+            // Note: This requires the ID column to be a PRIMARY KEY or UNIQUE index.
+            // Based on schema.sql, 'id' is PRIMARY KEY for all tables except maybe legacy ones.
             
-            if (exists.length > 0) {
-                await pool.query(`UPDATE ${table} SET data = ? WHERE id = ?`, [dataStr, id]);
+            if (table === 'blog_posts') {
+                 await pool.query(
+                    `INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, 
+                    [id, item.title, item.category, dataStr]
+                 );
+            } else if (table === 'cases') {
+                 await pool.query(
+                    `INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, 
+                    [id, item.title, dataStr]
+                 );
+            } else if (table === 'images') {
+                 // Images might not update often, but standard upsert
+                 await pool.query(
+                    `INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, 
+                    [id, item.name, item.data]
+                 );
             } else {
-                // For tables with extra columns, we might need specific logic, 
-                // but here we use a generic approach assuming schema supports it or we only map known cols
-                // Simplified for the "data" blob approach:
-                if (table === 'blog_posts') {
-                     await pool.query(`INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?)`, [id, item.title, item.category, dataStr]);
-                } else if (table === 'cases') {
-                     await pool.query(`INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?)`, [id, item.title, dataStr]);
-                } else if (table === 'images') {
-                     await pool.query(`INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?)`, [id, item.name, item.data]);
-                } else {
-                     await pool.query(`INSERT INTO ${table} (id, data) VALUES (?, ?)`, [id, dataStr]);
-                }
+                 await pool.query(
+                    `INSERT INTO ${table} (id, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)`, 
+                    [id, dataStr]
+                 );
             }
+            
             res.json({ success: true });
         } catch (error) {
-            console.error(error);
+            console.error(`POST ${table} Error:`, error);
             res.status(500).json({ error: error.message });
         }
     });
@@ -88,7 +96,7 @@ const createCrudHandlers = (table, isJsonData = true) => {
             await pool.query(`DELETE FROM ${table} WHERE id = ?`, [req.params.id]);
             res.json({ success: true });
         } catch (error) {
-            console.error(error);
+            console.error(`DELETE ${table} Error:`, error);
             res.status(500).json({ error: error.message });
         }
     });
@@ -96,7 +104,7 @@ const createCrudHandlers = (table, isJsonData = true) => {
 
 // --- Routes ---
 
-// 1. Leads (Structured Table)
+// 1. Leads
 app.get('/api/leads', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM leads ORDER BY date DESC');
@@ -107,8 +115,9 @@ app.get('/api/leads', async (req, res) => {
 app.post('/api/leads', async (req, res) => {
     try {
         const { id, name, phone, service, status, date } = req.body;
+        // Upsert for leads too just in case
         await pool.query(
-            'INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?)',
+            'INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status)',
             [id, name, phone, service, status, date]
         );
         res.json({ success: true });
@@ -135,18 +144,19 @@ createCrudHandlers('cases');
 createCrudHandlers('testimonials');
 createCrudHandlers('team');
 createCrudHandlers('popups');
-createCrudHandlers('images'); // Note: Images in MySQL blob/text might be slow, but fits requirement
+createCrudHandlers('images');
 createCrudHandlers('blog_posts');
 
-// 3. Settings (Single Row usually, or Key-Value)
+// 3. Settings
 app.get('/api/settings', async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM settings');
         const settings = {};
         rows.forEach(r => {
-             // If we stored the whole settings object in one key
              if (r.setting_key === 'global') {
-                 Object.assign(settings, JSON.parse(r.data));
+                 try {
+                    Object.assign(settings, JSON.parse(r.data));
+                 } catch (e) {}
              }
         });
         res.json(settings);
@@ -156,12 +166,10 @@ app.get('/api/settings', async (req, res) => {
 app.post('/api/settings', async (req, res) => {
     try {
         const dataStr = JSON.stringify(req.body);
-        const [exists] = await pool.query("SELECT setting_key FROM settings WHERE setting_key = 'global'");
-        if (exists.length > 0) {
-            await pool.query("UPDATE settings SET data = ? WHERE setting_key = 'global'", [dataStr]);
-        } else {
-            await pool.query("INSERT INTO settings (setting_key, data) VALUES ('global', ?)", [dataStr]);
-        }
+        await pool.query(
+            "INSERT INTO settings (setting_key, data) VALUES ('global', ?) ON DUPLICATE KEY UPDATE data=VALUES(data)", 
+            [dataStr]
+        );
         res.json({ success: true });
     } catch (e) { res.status(500).json(e); }
 });
