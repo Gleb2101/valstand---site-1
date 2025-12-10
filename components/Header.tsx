@@ -1,5 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
+import { dataManager } from '../services/dataManager';
 
 interface HeaderProps {
   onNavigate: (page: string) => void;
@@ -9,12 +11,19 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>('');
 
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll);
+    
+    // Load settings for logo
+    dataManager.getSettings().then(s => {
+      if (s.logo) setLogoUrl(s.logo);
+    });
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -41,9 +50,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
       <div className="container mx-auto px-4 flex justify-between items-center">
         {/* Logo */}
         <a href="#" onClick={(e) => handleLinkClick(e, 'home')} className="flex items-center gap-2 group">
-           <div className="w-10 h-10 bg-gradient-to-br from-brand-yellow to-brand-orange rounded-lg flex items-center justify-center transform group-hover:rotate-6 transition-transform shadow-lg">
-             <span className="text-white font-bold text-xl">V</span>
-           </div>
+           {logoUrl ? (
+             <img src={logoUrl} alt="Valstand Logo" className="h-10 w-auto object-contain" />
+           ) : (
+             <div className="w-10 h-10 bg-gradient-to-br from-brand-yellow to-brand-orange rounded-lg flex items-center justify-center transform group-hover:rotate-6 transition-transform shadow-lg">
+                <span className="text-white font-bold text-xl">V</span>
+             </div>
+           )}
            <span className={`font-bold text-2xl tracking-tight transition-colors ${isScrolled ? 'text-slate-900' : 'text-slate-900'}`}>
              Valstand
            </span>

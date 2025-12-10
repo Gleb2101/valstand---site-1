@@ -35,6 +35,17 @@ const SEOHead: React.FC<SEOHeadProps> = ({ pageKey, dynamicTitle, dynamicDescrip
         const keywords = seoConfig?.keywords || '';
         const ogImage = seoConfig?.ogImage || '';
 
+        // --- 4. Favicon ---
+        if (settings.favicon) {
+            let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+            if (!link) {
+                link = document.createElement('link');
+                link.rel = 'icon';
+                document.head.appendChild(link);
+            }
+            link.href = settings.favicon;
+        }
+
         // --- Helper to update or create meta tags ---
         const updateMeta = (nameOrProperty: string, content: string, isProperty = false) => {
         const attr = isProperty ? 'property' : 'name';

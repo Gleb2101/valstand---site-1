@@ -34,7 +34,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [popups, setPopups] = useState<Popup[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [settings, setSettings] = useState<SiteSettings>({ headerCode: '', footerCode: '', seo: {} });
+  const [settings, setSettings] = useState<SiteSettings>({ headerCode: '', footerCode: '', seo: {}, socials: {} });
 
   // Editing State
   const [editingCase, setEditingCase] = useState<CaseStudy | null>(null);
@@ -82,7 +82,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         setPopups(p);
         setBlogPosts(b);
         setCategories(cat);
-        setSettings(s);
+        // Ensure socials object exists
+        setSettings({ ...s, socials: s.socials || {} });
     } catch (e) {
         console.error(e);
         alert('Ошибка загрузки данных. Проверьте соединение с сервером.');
@@ -173,9 +174,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const handleDeleteTeam = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    // Assuming deleteTeam exists or we implement generic delete
-    // For now we assume fetchWithFallback logic in dataManager handles it if updated
-    // But DataManager currently lacks deleteTeam. Let's assume we add it or just skip for now.
     alert('Удаление сотрудников пока не реализовано в API');
   };
 
@@ -387,7 +385,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           <TabButton id="popups" label="Попапы" icon={Layers} />
           <TabButton id="seo" label="SEO" icon={Search} />
           <TabButton id="media" label="Медиа" icon={ImageIcon} />
-          <TabButton id="settings" label="Код" icon={Settings} />
+          <TabButton id="settings" label="Настройки" icon={Settings} />
         </div>
 
         {loading ? (
@@ -481,7 +479,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* --- BLOG --- */}
+            {/* ... Cases, Reviews, Team, Popups, Blog, SEO tabs (unchanged) ... */}
             {activeTab === 'blog' && (
                 <div>
                   {!editingPost ? (
@@ -604,7 +602,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* --- CASES --- */}
             {activeTab === 'cases' && (
                 <div>
                     {!editingCase ? (
@@ -648,6 +645,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                         </>
                     ) : (
                         <form onSubmit={handleSaveCase} className="space-y-4">
+                            {/* Case form fields - unchanged */}
                             <h3 className="text-xl font-bold mb-4">{editingCase.id ? 'Редактирование кейса' : 'Новый кейс'}</h3>
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
@@ -716,10 +714,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                     )}
                 </div>
             )}
-
-            {/* --- REVIEWS --- */}
+            
             {activeTab === 'reviews' && (
-                 <div>
+                <div>
+                   {/* Review rendering logic (unchanged) */}
                     {!editingReview ? (
                          <>
                          <button 
@@ -785,9 +783,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                  </div>
             )}
             
-            {/* --- TEAM --- */}
             {activeTab === 'team' && (
                 <div>
+                   {/* Team tab logic (unchanged) */}
                      {!editingMember ? (
                          <>
                          <button 
@@ -834,9 +832,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* --- POPUPS --- */}
             {activeTab === 'popups' && (
                 <div>
+                   {/* Popup tab logic (unchanged) */}
                      {!editingPopup ? (
                         <>
                         <button 
@@ -984,9 +982,81 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* --- SETTINGS (CODE) --- */}
+            {/* --- SETTINGS (CODE & BRANDING) --- */}
             {activeTab === 'settings' && (
                 <div className="max-w-4xl space-y-6">
+                    {/* General Settings Section */}
+                    <div className="bg-white p-6 rounded-xl border border-slate-200">
+                         <h3 className="text-xl font-bold mb-4">Брендинг</h3>
+                         <div className="space-y-6">
+                            <ImagePicker 
+                              label="Логотип в шапке (Header)" 
+                              value={settings.logo || ''} 
+                              onChange={(url) => setSettings({...settings, logo: url})} 
+                            />
+                            <ImagePicker 
+                              label="Фавикон сайта (рекомендуется 32x32 или 64x64 PNG)" 
+                              value={settings.favicon || ''} 
+                              onChange={(url) => setSettings({...settings, favicon: url})} 
+                            />
+                         </div>
+                    </div>
+
+                    {/* Social Media Section */}
+                    <div className="bg-white p-6 rounded-xl border border-slate-200">
+                        <h3 className="text-xl font-bold mb-4">Социальные сети (Footer)</h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm text-slate-500 mb-1">ВКонтакте (VK)</label>
+                                <input 
+                                    className="w-full p-2 border border-slate-300 rounded" 
+                                    placeholder="https://vk.com/..."
+                                    value={settings.socials?.vk || ''}
+                                    onChange={(e) => setSettings({
+                                        ...settings, 
+                                        socials: { ...settings.socials, vk: e.target.value }
+                                    })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-slate-500 mb-1">Telegram</label>
+                                <input 
+                                    className="w-full p-2 border border-slate-300 rounded" 
+                                    placeholder="https://t.me/..."
+                                    value={settings.socials?.telegram || ''}
+                                    onChange={(e) => setSettings({
+                                        ...settings, 
+                                        socials: { ...settings.socials, telegram: e.target.value }
+                                    })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-slate-500 mb-1">VC.ru</label>
+                                <input 
+                                    className="w-full p-2 border border-slate-300 rounded" 
+                                    placeholder="https://vc.ru/..."
+                                    value={settings.socials?.vc || ''}
+                                    onChange={(e) => setSettings({
+                                        ...settings, 
+                                        socials: { ...settings.socials, vc: e.target.value }
+                                    })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm text-slate-500 mb-1">TJ (ТЖ)</label>
+                                <input 
+                                    className="w-full p-2 border border-slate-300 rounded" 
+                                    placeholder="https://tjournal.ru/..."
+                                    value={settings.socials?.tj || ''}
+                                    onChange={(e) => setSettings({
+                                        ...settings, 
+                                        socials: { ...settings.socials, tj: e.target.value }
+                                    })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg text-sm text-yellow-800">
                         <span className="font-bold">Внимание:</span> Вставка некорректного кода (JS/HTML) может сломать сайт. Будьте осторожны.
                     </div>
@@ -1012,7 +1082,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                     </div>
 
                     <button onClick={handleSaveSettings} className="px-6 py-3 bg-brand-yellow text-brand-dark font-bold rounded-xl hover:bg-brand-orange">
-                        Сохранить код
+                        Сохранить настройки
                     </button>
                 </div>
             )}

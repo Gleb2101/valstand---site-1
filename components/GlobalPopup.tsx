@@ -1,9 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { Popup } from '../types';
-import ContactForm from './ContactForm';
 
 const GlobalPopup: React.FC = () => {
   const [activePopup, setActivePopup] = useState<Popup | null>(null);
@@ -11,17 +10,21 @@ const GlobalPopup: React.FC = () => {
 
   useEffect(() => {
     const load = async () => {
-        const popups = await dataManager.getPopups();
-        const target = popups.find(p => p.isActive);
+        try {
+            const popups = await dataManager.getPopups();
+            const target = popups.find(p => p.isActive);
 
-        if (target) {
-            const seenKey = `valstand_popup_seen_${target.id}`;
-            if (!sessionStorage.getItem(seenKey)) {
-                setTimeout(() => {
-                setActivePopup(target);
-                setIsOpen(true);
-                }, (target.delaySeconds || 0) * 1000);
+            if (target) {
+                const seenKey = `valstand_popup_seen_${target.id}`;
+                if (!sessionStorage.getItem(seenKey)) {
+                    setTimeout(() => {
+                        setActivePopup(target);
+                        setIsOpen(true);
+                    }, (target.delaySeconds || 0) * 1000);
+                }
             }
+        } catch (e) {
+            console.error("Popup load error", e);
         }
     };
     load();
@@ -99,15 +102,25 @@ const MiniContactForm: React.FC<{ service: string; onSuccess: () => void }> = ({
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [submitted, setSubmitted] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(false);
   
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      await dataManager.addLead({ name, phone, service: `POPUP: ${service}` });
-      setSubmitted(true);
-      setTimeout(onSuccess, 2000);
+      setLoading(true);
+      setError(false);
+      try {
+        await dataManager.addLead({ name, phone, service: `POPUP: ${service}` });
+        setSubmitted(true);
+        setTimeout(onSuccess, 2000);
+      } catch (e) {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
     };
   
-    if (submitted) return <div className="text-green-500 text-center font-bold">Спасибо! Заявка отправлена.</div>;
+    if (submitted) return <div className="text-green-500 text-center font-bold animate-fade-in">Спасибо! Заявка отправлена.</div>;
   
     return (
       <form onSubmit={handleSubmit} className="space-y-3">
@@ -117,6 +130,7 @@ const MiniContactForm: React.FC<{ service: string; onSuccess: () => void }> = ({
           className="w-full p-2 rounded bg-white/10 border border-white/10 text-white text-sm"
           value={name}
           onChange={e => setName(e.target.value)}
+          disabled={loading}
         />
         <input 
           required 
@@ -124,9 +138,16 @@ const MiniContactForm: React.FC<{ service: string; onSuccess: () => void }> = ({
           className="w-full p-2 rounded bg-white/10 border border-white/10 text-white text-sm"
           value={phone}
           onChange={e => setPhone(e.target.value)}
+          disabled={loading}
         />
-        <button type="submit" className="w-full py-2 bg-brand-yellow text-brand-dark font-bold rounded text-sm hover:bg-brand-orange transition-colors">
-          Отправить
+        {error && <div className="text-red-400 text-xs text-center">Ошибка отправки</div>}
+        <button 
+          type="submit" 
+          className="w-full py-2 bg-brand-yellow text-brand-dark font-bold rounded text-sm hover:bg-brand-orange transition-colors flex justify-center items-center gap-2"
+          disabled={loading}
+        >
+          {loading && <Loader2 size={14} className="animate-spin" />}
+          {loading ? 'Отправка...' : 'Отправить'}
         </button>
       </form>
     );

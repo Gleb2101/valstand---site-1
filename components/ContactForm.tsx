@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, MapPin, CheckCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { SERVICES, PACKAGES } from '../constants';
 import { dataManager } from '../services/dataManager';
 
@@ -18,26 +18,38 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
     phone: ''
   });
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
     setInterest(selectedService);
   }, [selectedService]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!privacyAccepted) return;
 
-    // Save to CMS Manager
-    dataManager.addLead({
-      name: formData.name,
-      phone: formData.phone,
-      service: interest
-    });
+    setIsSubmitting(true);
+    setErrorMessage('');
 
-    setSubmitted(true);
-    setFormData({ name: '', phone: '' });
-    setPrivacyAccepted(false);
+    try {
+      // Save to CMS Manager
+      await dataManager.addLead({
+        name: formData.name,
+        phone: formData.phone,
+        service: interest
+      });
+
+      setSubmitted(true);
+      setFormData({ name: '', phone: '' });
+      setPrivacyAccepted(false);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage('Не удалось отправить заявку. Пожалуйста, проверьте подключение к интернету или позвоните нам напрямую.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -86,7 +98,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
 
           <div className="bg-white rounded-3xl p-8 md:p-10 shadow-2xl border border-slate-100">
             {submitted ? (
-              <div className="h-full flex flex-col items-center justify-center text-center py-20">
+              <div className="h-full flex flex-col items-center justify-center text-center py-20 animate-fade-in">
                 <CheckCircle className="text-green-500 w-20 h-20 mb-6" />
                 <h3 className="text-2xl font-bold text-slate-900 mb-2">Заявка отправлена!</h3>
                 <p className="text-slate-600">Менеджер Valstand свяжется с вами в течение 15 минут.</p>
@@ -108,6 +120,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                     className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
                     placeholder="Иван Иванов"
+                    disabled={isSubmitting}
                   />
                 </div>
                 
@@ -120,6 +133,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                     className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
                     placeholder="+7 (---) --- -- --"
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -129,6 +143,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                     value={interest}
                     onChange={(e) => setInterest(e.target.value)}
                     className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
+                    disabled={isSubmitting}
                   >
                     <optgroup label="Основные услуги">
                       {SERVICES.map((s) => (
@@ -153,6 +168,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                       checked={privacyAccepted}
                       onChange={(e) => setPrivacyAccepted(e.target.checked)}
                       className="h-5 w-5 text-brand-orange border-slate-300 rounded focus:ring-brand-orange cursor-pointer"
+                      disabled={isSubmitting}
                     />
                   </div>
                   <label htmlFor="privacy-policy" className="text-sm text-slate-500 leading-tight cursor-pointer">
@@ -171,16 +187,30 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                   </label>
                 </div>
 
+                {errorMessage && (
+                  <div className="bg-red-50 text-red-600 p-4 rounded-lg text-sm flex items-center gap-2">
+                    <AlertCircle size={16} className="shrink-0" />
+                    {errorMessage}
+                  </div>
+                )}
+
                 <button 
                   type="submit" 
-                  disabled={!privacyAccepted}
-                  className={`w-full py-4 font-bold rounded-lg transition-all transform ${
-                    privacyAccepted
+                  disabled={!privacyAccepted || isSubmitting}
+                  className={`w-full py-4 font-bold rounded-lg transition-all transform flex items-center justify-center gap-2 ${
+                    privacyAccepted && !isSubmitting
                       ? 'bg-gradient-to-r from-brand-yellow to-brand-orange text-white hover:shadow-lg hover:shadow-orange-500/30 hover:-translate-y-1'
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed'
                   }`}
                 >
-                  Получить консультацию
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="animate-spin" size={20} />
+                      Отправка...
+                    </>
+                  ) : (
+                    'Получить консультацию'
+                  )}
                 </button>
               </form>
             )}

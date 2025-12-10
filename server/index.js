@@ -56,10 +56,6 @@ const createCrudHandlers = (table, isJsonData = true) => {
 
             const dataStr = JSON.stringify(item);
             
-            // Using ON DUPLICATE KEY UPDATE pattern for atomic upsert
-            // Note: This requires the ID column to be a PRIMARY KEY or UNIQUE index.
-            // Based on schema.sql, 'id' is PRIMARY KEY for all tables except maybe legacy ones.
-            
             if (table === 'blog_posts') {
                  await pool.query(
                     `INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, 
@@ -71,7 +67,6 @@ const createCrudHandlers = (table, isJsonData = true) => {
                     [id, item.title, dataStr]
                  );
             } else if (table === 'images') {
-                 // Images might not update often, but standard upsert
                  await pool.query(
                     `INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, 
                     [id, item.name, item.data]
@@ -115,13 +110,22 @@ app.get('/api/leads', async (req, res) => {
 app.post('/api/leads', async (req, res) => {
     try {
         const { id, name, phone, service, status, date } = req.body;
-        // Upsert for leads too just in case
+        
+        // Ensure date is present. Use MySQL friendly format if client didn't send or sent bad format.
+        // Client sends YYYY-MM-DD HH:MM:SS now, but fallback to now() just in case.
+        const validDate = date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+        console.log('Received Lead:', { id, name, phone, service, status, validDate });
+
         await pool.query(
             'INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status)',
-            [id, name, phone, service, status, date]
+            [id, name, phone, service, status, validDate]
         );
         res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
+    } catch (e) { 
+        console.error("LEAD SAVE ERROR:", e);
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 app.put('/api/leads/:id', async (req, res) => {

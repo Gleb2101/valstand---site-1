@@ -25,13 +25,9 @@ const fetchWithFallback = async <T>(endpoint: string, fallback: T): Promise<T> =
     const res = await fetch(`${API_URL}/${endpoint}`);
     if (!res.ok) throw new Error('Server error');
     const data = await res.json();
-    // If array is empty, maybe return fallback? No, DB might be genuinely empty.
-    // But if DB returns nothing on first load, we might want to seed it? 
-    // For now, return DB data.
     return data;
   } catch (e) {
     console.warn(`API ${endpoint} failed, using fallback.`, e);
-    // Try localStorage as second fallback layer
     const ls = localStorage.getItem(`valstand_${endpoint}`);
     if (ls) return JSON.parse(ls);
     return fallback;
@@ -40,24 +36,28 @@ const fetchWithFallback = async <T>(endpoint: string, fallback: T): Promise<T> =
 
 const postData = async (endpoint: string, data: any) => {
     try {
-        await fetch(`${API_URL}/${endpoint}`, {
+        const res = await fetch(`${API_URL}/${endpoint}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        // Also save to LS for redundancy
-        // localStorage.setItem(`valstand_${endpoint}`, ... logic is complex for arrays, skipping LS write for post);
+        if (!res.ok) {
+            const errText = await res.text();
+            throw new Error(`Server error: ${res.status} ${errText}`);
+        }
     } catch (e) {
-        console.error("Save failed", e);
-        alert("Ошибка сохранения на сервере");
+        console.error(`Save to ${endpoint} failed`, e);
+        throw e; 
     }
 };
 
 const deleteData = async (endpoint: string, id: string | number) => {
     try {
-        await fetch(`${API_URL}/${endpoint}/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API_URL}/${endpoint}/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
     } catch (e) {
         console.error("Delete failed", e);
+        throw e;
     }
 };
 
@@ -93,10 +93,13 @@ export const dataManager = {
   // Leads
   getLeads: async (): Promise<Lead[]> => fetchWithFallback('leads', []),
   addLead: async (lead: Omit<Lead, 'id' | 'date' | 'status'>) => {
+    // MySQL compatible date format: YYYY-MM-DD HH:MM:SS
+    const date = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    
     const newLead = {
       ...lead,
       id: Math.random().toString(36).substr(2, 9),
-      date: new Date().toISOString(),
+      date: date,
       status: 'new'
     };
     await postData('leads', newLead);

@@ -1,5 +1,4 @@
 
-
 export interface ServiceItem {
   id: string;
   title: string;
@@ -101,8 +100,16 @@ export interface PageSEO {
 }
 
 export interface SiteSettings {
-  headerCode: string; // HTML/JS for <head>
-  footerCode: string; // HTML/JS for end of <body>
+  favicon?: string; 
+  logo?: string; // URL to logo
+  socials?: {
+    vk?: string;
+    telegram?: string;
+    tj?: string;
+    vc?: string;
+  };
+  headerCode: string; 
+  footerCode: string; 
   seo: Record<string, PageSEO>;
 }
 
