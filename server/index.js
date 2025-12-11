@@ -22,6 +22,11 @@ const pool = mysql.createPool({
     queueLimit: 0
 });
 
+// --- Health Check Route ---
+app.get('/api', (req, res) => {
+    res.send('API Backend is running correctly!');
+});
+
 // --- Database Setup Route ---
 app.get('/setup', async (req, res) => {
     try {

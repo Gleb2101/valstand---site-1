@@ -2,7 +2,14 @@
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, StoredImage } from '../types';
 import { CASES, TESTIMONIALS, TEAM_MEMBERS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
 
-const API_URL = 'http://localhost:3001/api';
+// Determine the API URL based on the environment
+// In Development (Vite): Use '/api' relative path (proxied to localhost:3001)
+// In Production: Connect directly to the server on port 3001
+const isDev = import.meta.env.DEV;
+const protocol = window.location.protocol; // http: or https:
+const hostname = window.location.hostname; // valstand.ru
+
+const API_URL = isDev ? '/api' : `${protocol}//${hostname}:3001/api`;
 
 const DEFAULT_SEO = {
   home: {
@@ -23,11 +30,12 @@ const DEFAULT_SEO = {
 const fetchWithFallback = async <T>(endpoint: string, fallback: T): Promise<T> => {
   try {
     const res = await fetch(`${API_URL}/${endpoint}`);
-    if (!res.ok) throw new Error('Server error');
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
     return data;
   } catch (e) {
-    console.warn(`API ${endpoint} failed, using fallback.`, e);
+    console.warn(`API ${endpoint} failed, using fallback. Error:`, e);
+    // Try to load from localStorage just in case, otherwise use static constant
     const ls = localStorage.getItem(`valstand_${endpoint}`);
     if (ls) return JSON.parse(ls);
     return fallback;
@@ -47,6 +55,7 @@ const postData = async (endpoint: string, data: any) => {
         }
     } catch (e) {
         console.error(`Save to ${endpoint} failed`, e);
+        alert(`Ошибка сохранения данных: ${e.message}. \nУбедитесь, что сервер запущен на порту 3001.`);
         throw e; 
     }
 };
@@ -57,6 +66,7 @@ const deleteData = async (endpoint: string, id: string | number) => {
         if (!res.ok) throw new Error('Delete failed');
     } catch (e) {
         console.error("Delete failed", e);
+        alert('Ошибка удаления. Сервер недоступен.');
         throw e;
     }
 };
@@ -64,6 +74,11 @@ const deleteData = async (endpoint: string, id: string | number) => {
 export const dataManager = {
   init: async () => {
      // Optional: Check server health
+     try {
+       await fetch(`${API_URL}`); // Simple health ping
+     } catch (e) {
+       console.log("Backend offline or port blocked");
+     }
   },
 
   // Cases
@@ -127,7 +142,7 @@ export const dataManager = {
 
   // Settings
   getSettings: async (): Promise<SiteSettings> => {
-      const fallback = { headerCode: '', footerCode: '', seo: DEFAULT_SEO };
+      const fallback = { headerCode: '', footerCode: '', seo: DEFAULT_SEO, socials: {} };
       const settings = await fetchWithFallback('settings', fallback);
       if (!settings.seo) settings.seo = DEFAULT_SEO;
       return settings;
