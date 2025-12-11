@@ -1,15 +1,10 @@
 
-import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, StoredImage } from '../types';
-import { CASES, TESTIMONIALS, TEAM_MEMBERS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
+import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, StoredImage, ServiceItem } from '../types';
+import { CASES, TESTIMONIALS, TEAM_MEMBERS, BLOG_POSTS, BLOG_CATEGORIES, SERVICES } from '../constants';
 
-// Determine the API URL based on the environment
-// In Development (Vite): Use '/api' relative path (proxied to localhost:3001)
-// In Production: Connect directly to the server on port 3001
-const isDev = import.meta.env.DEV;
-const protocol = window.location.protocol; // http: or https:
-const hostname = window.location.hostname; // valstand.ru
-
-const API_URL = isDev ? '/api' : `${protocol}//${hostname}:3001/api`;
+// Так как мы раздаем статику через Node.js, API всегда доступно по относительному пути '/api'
+// Это работает и локально (через прокси Vite), и на продакшене.
+const API_URL = '/api';
 
 const DEFAULT_SEO = {
   home: {
@@ -32,10 +27,12 @@ const fetchWithFallback = async <T>(endpoint: string, fallback: T): Promise<T> =
     const res = await fetch(`${API_URL}/${endpoint}`);
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
+    if (Array.isArray(data) && data.length === 0 && Array.isArray(fallback) && fallback.length > 0) {
+        return fallback; 
+    }
     return data;
-  } catch (e) {
+  } catch (e: any) {
     console.warn(`API ${endpoint} failed, using fallback. Error:`, e);
-    // Try to load from localStorage just in case, otherwise use static constant
     const ls = localStorage.getItem(`valstand_${endpoint}`);
     if (ls) return JSON.parse(ls);
     return fallback;
@@ -56,7 +53,7 @@ const postData = async (endpoint: string, data: any) => {
     } catch (e: any) {
         console.error(`Save to ${endpoint} failed`, e);
         const errorMsg = e?.message || String(e);
-        alert(`Ошибка сохранения данных: ${errorMsg}. \nУбедитесь, что сервер запущен на порту 3001.`);
+        alert(`Ошибка сохранения данных: ${errorMsg}.`);
         throw e; 
     }
 };
@@ -65,7 +62,7 @@ const deleteData = async (endpoint: string, id: string | number) => {
     try {
         const res = await fetch(`${API_URL}/${endpoint}/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error('Delete failed');
-    } catch (e) {
+    } catch (e: any) {
         console.error("Delete failed", e);
         alert('Ошибка удаления. Сервер недоступен.');
         throw e;
@@ -74,13 +71,17 @@ const deleteData = async (endpoint: string, id: string | number) => {
 
 export const dataManager = {
   init: async () => {
-     // Optional: Check server health
      try {
-       await fetch(`${API_URL}`); // Simple health ping
-     } catch (e) {
-       console.log("Backend offline or port blocked");
+       await fetch(`${API_URL}`); 
+     } catch (e: any) {
+       console.log("Backend offline");
      }
   },
+
+  // Services
+  getServices: async (): Promise<ServiceItem[]> => fetchWithFallback('services', SERVICES),
+  saveService: async (item: ServiceItem) => postData('services', item),
+  deleteService: async (id: string) => deleteData('services', id),
 
   // Cases
   getCases: async (): Promise<CaseStudy[]> => fetchWithFallback('cases', CASES),
@@ -109,9 +110,7 @@ export const dataManager = {
   // Leads
   getLeads: async (): Promise<Lead[]> => fetchWithFallback('leads', []),
   addLead: async (lead: Omit<Lead, 'id' | 'date' | 'status'>) => {
-    // MySQL compatible date format: YYYY-MM-DD HH:MM:SS
     const date = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    
     const newLead = {
       ...lead,
       id: Math.random().toString(36).substr(2, 9),
@@ -127,7 +126,7 @@ export const dataManager = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status })
         });
-      } catch (e) { console.error(e); }
+      } catch (e: any) { console.error(e); }
   },
   deleteLead: async (id: string) => deleteData('leads', id),
 

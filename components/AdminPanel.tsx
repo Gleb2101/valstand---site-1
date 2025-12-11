@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, ArrowLeft, Settings, Layers, Search, Globe, Box, Tag, Image as ImageIcon, FileText, List, Loader, X, Check } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, ArrowLeft, Settings, Layers, Search, Globe, Box, Tag, Image as ImageIcon, FileText, List, Loader, X, Check, Target } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
-import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost } from '../types';
-import { SERVICES, PACKAGES } from '../constants';
+import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem } from '../types';
+import { PACKAGES } from '../constants';
 import RichTextEditor from './RichTextEditor';
 import ImagePicker from './ImagePicker';
 import MediaLibrary from './MediaLibrary';
@@ -12,7 +12,7 @@ interface AdminPanelProps {
   onBack: () => void;
 }
 
-type Tab = 'dashboard' | 'leads' | 'cases' | 'reviews' | 'blog' | 'team' | 'popups' | 'settings' | 'seo' | 'media';
+type Tab = 'dashboard' | 'leads' | 'services' | 'cases' | 'reviews' | 'blog' | 'team' | 'popups' | 'settings' | 'seo' | 'media';
 
 interface SeoPageItem {
   key: string;
@@ -33,6 +33,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [popups, setPopups] = useState<Popup[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [servicesData, setServicesData] = useState<ServiceItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [settings, setSettings] = useState<SiteSettings>({ headerCode: '', footerCode: '', seo: {}, socials: {} });
 
@@ -42,6 +43,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
   const [editingPopup, setEditingPopup] = useState<Popup | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
+  const [editingService, setEditingService] = useState<ServiceItem | null>(null);
 
   // Category editing
   const [newCategory, setNewCategory] = useState('');
@@ -65,7 +67,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-        const [l, c, r, t, p, b, cat, s] = await Promise.all([
+        const [l, c, r, t, p, b, cat, s, srv] = await Promise.all([
             dataManager.getLeads(),
             dataManager.getCases(),
             dataManager.getTestimonials(),
@@ -73,7 +75,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             dataManager.getPopups(),
             dataManager.getBlogPosts(),
             dataManager.getCategories(),
-            dataManager.getSettings()
+            dataManager.getSettings(),
+            dataManager.getServices()
         ]);
         setLeads(l);
         setCases(c);
@@ -82,6 +85,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         setPopups(p);
         setBlogPosts(b);
         setCategories(cat);
+        setServicesData(srv);
         // Ensure socials object exists
         setSettings({ ...s, socials: s.socials || {} });
     } catch (e) {
@@ -124,6 +128,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         await dataManager.deleteLead(id);
         setLeads(await dataManager.getLeads());
     }
+  };
+
+  const handleSaveService = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (editingService) {
+          await dataManager.saveService(editingService);
+          setEditingService(null);
+          setServicesData(await dataManager.getServices());
+      }
   };
 
   const handleSaveCase = async (e: React.FormEvent) => {
@@ -236,6 +249,79 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     alert('Настройки сохранены.');
   };
 
+  // Service Helpers
+  const addServiceBenefit = () => {
+    if (editingService) {
+        setEditingService({
+            ...editingService,
+            benefits: [...editingService.benefits, { title: 'Заголовок', desc: 'Описание' }]
+        });
+    }
+  };
+
+  const removeServiceBenefit = (idx: number) => {
+     if(editingService) {
+         const nb = [...editingService.benefits];
+         nb.splice(idx, 1);
+         setEditingService({...editingService, benefits: nb});
+     }
+  };
+
+  const updateServiceBenefit = (idx: number, field: 'title' | 'desc', val: string) => {
+      if(editingService) {
+          const nb = [...editingService.benefits];
+          nb[idx][field] = val;
+          setEditingService({...editingService, benefits: nb});
+      }
+  };
+
+  const addServiceFeature = () => {
+      if (editingService) {
+          setEditingService({...editingService, features: [...editingService.features, '']});
+      }
+  };
+
+  const updateServiceFeature = (idx: number, val: string) => {
+      if (editingService) {
+          const nf = [...editingService.features];
+          nf[idx] = val;
+          setEditingService({...editingService, features: nf});
+      }
+  };
+
+  const removeServiceFeature = (idx: number) => {
+    if(editingService) {
+        const nf = [...editingService.features];
+        nf.splice(idx, 1);
+        setEditingService({...editingService, features: nf});
+    }
+  };
+
+  const addServiceProcess = () => {
+      if (editingService) {
+          setEditingService({
+              ...editingService,
+              process: [...editingService.process, { step: 'Этап', desc: 'Описание', details: '', exampleImage: '' }]
+          });
+      }
+  };
+  
+  const updateServiceProcess = (idx: number, field: string, val: string) => {
+      if (editingService) {
+          const np = [...editingService.process];
+          (np[idx] as any)[field] = val;
+          setEditingService({...editingService, process: np});
+      }
+  };
+
+  const removeServiceProcess = (idx: number) => {
+      if(editingService) {
+          const np = [...editingService.process];
+          np.splice(idx, 1);
+          setEditingService({...editingService, process: np});
+      }
+  };
+
   // Case Results Helpers
   const addCaseResult = () => {
     if (editingCase) {
@@ -299,7 +385,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       { key: 'privacy', label: 'Политика конфиденциальности', group: 'Другое' },
     ];
 
-    SERVICES.forEach(s => {
+    servicesData.forEach(s => {
       pages.push({ key: `service:${s.id}`, label: `Услуга: ${s.title}`, group: 'Услуги' });
     });
 
@@ -378,6 +464,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         <div className="flex flex-wrap gap-2 mb-8 bg-slate-200/50 p-2 rounded-xl border border-slate-200 overflow-x-auto scrollbar-hide">
           <TabButton id="dashboard" label="Сводка" icon={LayoutDashboard} />
           <TabButton id="leads" label="Заявки" icon={MessageSquare} />
+          <TabButton id="services" label="Услуги" icon={Target} />
           <TabButton id="blog" label="Блог" icon={FileText} />
           <TabButton id="cases" label="Кейсы" icon={Briefcase} />
           <TabButton id="reviews" label="Отзывы" icon={Users} />
@@ -421,6 +508,125 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             {activeTab === 'media' && (
                 <div className="h-[600px]">
                     <MediaLibrary />
+                </div>
+            )}
+            
+            {/* --- SERVICES --- */}
+            {activeTab === 'services' && (
+                <div>
+                    {!editingService ? (
+                        <div className="grid gap-4">
+                            {servicesData.map(s => (
+                                <div key={s.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                    <div>
+                                        <h4 className="font-bold text-slate-900 text-lg">{s.title}</h4>
+                                        <p className="text-sm text-slate-500 truncate max-w-md">{s.description}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => setEditingService(s)}
+                                        className="px-4 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+                                    >
+                                        Ред.
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSaveService} className="space-y-6">
+                             <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-bold">Редактирование услуги: {editingService.title}</h3>
+                                <button type="button" onClick={() => setEditingService(null)} className="text-slate-500 hover:text-slate-700 p-2"><X /></button>
+                             </div>
+
+                             <div className="grid md:grid-cols-2 gap-6">
+                                 <div>
+                                     <label className="block text-sm font-bold text-slate-700 mb-1">Название услуги</label>
+                                     <input className="w-full p-2 border rounded" value={editingService.title} onChange={e => setEditingService({...editingService, title: e.target.value})} required />
+                                 </div>
+                                 <div>
+                                     <label className="block text-sm font-bold text-slate-700 mb-1">Иконка (ключ из lucide)</label>
+                                     <select 
+                                        className="w-full p-2 border rounded"
+                                        value={editingService.icon}
+                                        onChange={e => setEditingService({...editingService, icon: e.target.value})}
+                                     >
+                                         <option value="target">Target (Мишень)</option>
+                                         <option value="search">Search (Лупа)</option>
+                                         <option value="share">Share (Поделиться)</option>
+                                         <option value="code">Code (Код)</option>
+                                         <option value="palette">Palette (Палитра)</option>
+                                         <option value="chart">Chart (График)</option>
+                                     </select>
+                                 </div>
+                             </div>
+
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Краткое описание (для карточки)</label>
+                                <textarea className="w-full p-2 border rounded h-20" value={editingService.description} onChange={e => setEditingService({...editingService, description: e.target.value})} required />
+                             </div>
+
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Полное описание (вверху страницы услуги)</label>
+                                <textarea className="w-full p-2 border rounded h-40 font-light" value={editingService.fullDescription} onChange={e => setEditingService({...editingService, fullDescription: e.target.value})} required />
+                             </div>
+
+                             {/* Features List */}
+                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                 <h4 className="font-bold mb-2">Что входит в услугу (Список)</h4>
+                                 {editingService.features.map((feat, idx) => (
+                                     <div key={idx} className="flex gap-2 mb-2">
+                                         <input className="w-full p-2 border rounded" value={feat} onChange={e => updateServiceFeature(idx, e.target.value)} />
+                                         <button type="button" onClick={() => removeServiceFeature(idx)} className="text-red-500 p-2"><X size={16} /></button>
+                                     </div>
+                                 ))}
+                                 <button type="button" onClick={addServiceFeature} className="text-sm text-blue-600 font-bold">+ Добавить пункт</button>
+                             </div>
+
+                             {/* Benefits List */}
+                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                 <h4 className="font-bold mb-2">Преимущества (Блоки)</h4>
+                                 {editingService.benefits.map((ben, idx) => (
+                                     <div key={idx} className="flex gap-2 mb-2 items-start">
+                                         <input placeholder="Заголовок" className="w-1/3 p-2 border rounded" value={ben.title} onChange={e => updateServiceBenefit(idx, 'title', e.target.value)} />
+                                         <textarea placeholder="Описание" className="w-2/3 p-2 border rounded h-10" value={ben.desc} onChange={e => updateServiceBenefit(idx, 'desc', e.target.value)} />
+                                         <button type="button" onClick={() => removeServiceBenefit(idx)} className="text-red-500 p-2 mt-2"><X size={16} /></button>
+                                     </div>
+                                 ))}
+                                 <button type="button" onClick={addServiceBenefit} className="text-sm text-blue-600 font-bold">+ Добавить преимущество</button>
+                             </div>
+
+                             {/* Process Steps */}
+                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                 <h4 className="font-bold mb-2">Этапы работы</h4>
+                                 <div className="space-y-4">
+                                    {editingService.process.map((step, idx) => (
+                                        <div key={idx} className="bg-white p-4 rounded border border-slate-200">
+                                            <div className="flex justify-between mb-2">
+                                                <span className="font-bold text-slate-400">Этап {idx + 1}</span>
+                                                <button type="button" onClick={() => removeServiceProcess(idx)} className="text-red-500"><Trash2 size={16} /></button>
+                                            </div>
+                                            <div className="grid md:grid-cols-2 gap-4 mb-2">
+                                                <input placeholder="Название этапа" className="w-full p-2 border rounded" value={step.step} onChange={e => updateServiceProcess(idx, 'step', e.target.value)} />
+                                                <input placeholder="Краткое описание" className="w-full p-2 border rounded" value={step.desc} onChange={e => updateServiceProcess(idx, 'desc', e.target.value)} />
+                                            </div>
+                                            <div className="mb-2">
+                                                <label className="text-xs text-slate-500">Подробности (Rich Text)</label>
+                                                {/* Simple textarea for details inside repeater to avoid complex nesting issues with RTE for now, or just text area */}
+                                                <textarea className="w-full p-2 border rounded h-24" value={step.details} onChange={e => updateServiceProcess(idx, 'details', e.target.value)} />
+                                            </div>
+                                            <ImagePicker label="Пример реализации (картинка)" value={step.exampleImage || ''} onChange={url => updateServiceProcess(idx, 'exampleImage', url)} />
+                                        </div>
+                                    ))}
+                                 </div>
+                                 <button type="button" onClick={addServiceProcess} className="mt-4 text-sm text-blue-600 font-bold">+ Добавить этап</button>
+                             </div>
+
+                             <div className="flex gap-4 pt-4 border-t">
+                                <button type="submit" className="px-6 py-3 bg-green-600 text-white rounded font-bold hover:bg-green-500 flex items-center gap-2"><Save size={18} /> Сохранить изменения</button>
+                                <button type="button" onClick={() => setEditingService(null)} className="px-6 py-3 bg-slate-200 text-slate-700 rounded font-bold hover:bg-slate-300">Отмена</button>
+                             </div>
+                        </form>
+                    )}
                 </div>
             )}
 
@@ -479,7 +685,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* ... Cases, Reviews, Team, Popups, Blog, SEO tabs (unchanged) ... */}
+            {/* ... Cases, Reviews, Team, Popups, Blog, SEO tabs (unchanged logic) ... */}
             {activeTab === 'blog' && (
                 <div>
                   {!editingPost ? (
@@ -645,7 +851,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                         </>
                     ) : (
                         <form onSubmit={handleSaveCase} className="space-y-4">
-                            {/* Case form fields - unchanged */}
                             <h3 className="text-xl font-bold mb-4">{editingCase.id ? 'Редактирование кейса' : 'Новый кейс'}</h3>
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div>
@@ -681,7 +886,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                 <textarea className="w-full p-2 rounded bg-slate-50 border border-slate-300 h-20" value={editingCase.fullDescription} onChange={e => setEditingCase({...editingCase, fullDescription: e.target.value})} />
                             </div>
 
-                            {/* Tags */}
                             <div>
                                 <label className="block text-sm text-slate-500 mb-1">Теги (через запятую)</label>
                                 <input 
@@ -691,7 +895,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                 />
                             </div>
 
-                            {/* Results Builder */}
                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                 <div className="flex justify-between items-center mb-2">
                                     <label className="font-bold text-sm">Показатели (Цифры)</label>
@@ -717,7 +920,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             
             {activeTab === 'reviews' && (
                 <div>
-                   {/* Review rendering logic (unchanged) */}
                     {!editingReview ? (
                          <>
                          <button 
@@ -785,7 +987,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             
             {activeTab === 'team' && (
                 <div>
-                   {/* Team tab logic (unchanged) */}
                      {!editingMember ? (
                          <>
                          <button 
@@ -834,7 +1035,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
 
             {activeTab === 'popups' && (
                 <div>
-                   {/* Popup tab logic (unchanged) */}
                      {!editingPopup ? (
                         <>
                         <button 

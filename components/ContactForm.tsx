@@ -1,16 +1,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { Mail, Phone, MapPin, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
-import { SERVICES, PACKAGES } from '../constants';
+import { PACKAGES } from '../constants';
 import { dataManager } from '../services/dataManager';
+import { ServiceItem } from '../types';
 
 interface ContactFormProps {
+  services?: ServiceItem[];
   selectedService: string;
   isPage?: boolean;
   onNavigate: (page: string) => void;
 }
 
-const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = false, onNavigate }) => {
+const ContactForm: React.FC<ContactFormProps> = ({ services = [], selectedService, isPage = false, onNavigate }) => {
   const [submitted, setSubmitted] = useState(false);
   const [interest, setInterest] = useState(selectedService);
   const [formData, setFormData] = useState({
@@ -52,6 +54,13 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
     }
   };
 
+  const isKnownService = (title: string) => {
+     if (title.startsWith('Пакет:')) return true;
+     if (title === 'Комплексное продвижение') return true;
+     if (services.find(s => s.title === title)) return true;
+     return false;
+  };
+
   return (
     <section id="contact" className={`${isPage ? 'py-12' : 'py-24'} bg-gradient-to-b from-slate-100 to-white relative`}>
       <div className="container mx-auto px-4">
@@ -62,7 +71,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
               {isPage ? (
                 <>Наши <span className="text-gradient">Контакты</span></>
               ) : (
-                (selectedService.startsWith('Пакет:') || selectedService === 'Комплексное продвижение' || SERVICES.find(s => s.title === selectedService)) ? (
+                isKnownService(selectedService) ? (
                   <>Давайте обсудим <br /><span className="text-gradient">Ваш Проект</span></>
                 ) : (
                    <>Закажите услугу <br /><span className="text-gradient">{selectedService}</span></>
@@ -146,7 +155,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ selectedService, isPage = fal
                     disabled={isSubmitting}
                   >
                     <optgroup label="Основные услуги">
-                      {SERVICES.map((s) => (
+                      {services.map((s) => (
                         <option key={s.id} value={s.title}>{s.title}</option>
                       ))}
                     </optgroup>

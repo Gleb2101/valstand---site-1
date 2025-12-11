@@ -21,9 +21,9 @@ import SEOHead from './components/SEOHead';
 import BlogPage from './components/BlogPage';
 import BlogPreview from './components/BlogPreview';
 import BlogPostView from './components/BlogPost';
-import { SERVICES, PACKAGES } from './constants';
+import { SERVICES as STATIC_SERVICES, PACKAGES } from './constants';
 import { dataManager } from './services/dataManager';
-import { CaseStudy, BlogPost } from './types';
+import { CaseStudy, BlogPost, ServiceItem } from './types';
 
 type ViewState = 
   | { type: 'home' }
@@ -43,79 +43,56 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewState>({ type: 'home' });
   const [selectedContactService, setSelectedContactService] = useState<string>('Комплексное продвижение');
   
-  // Dynamic data loading needed for routing & SEO
+  // Dynamic data loading needed for SEO and content
   const [dynamicCases, setDynamicCases] = useState<CaseStudy[]>([]);
   const [dynamicPosts, setDynamicPosts] = useState<BlogPost[]>([]);
+  const [servicesData, setServicesData] = useState<ServiceItem[]>(STATIC_SERVICES);
 
-  // Navigation Logic with Hash Routing
   useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash.slice(1);
-      
-      if (!hash || hash === 'home') {
-        setView({ type: 'home' });
-      } else if (hash === 'services') {
-        setView({ type: 'services' });
-      } else if (hash === 'cases') {
-        setView({ type: 'cases' });
-      } else if (hash === 'about') {
-        setView({ type: 'about' });
-      } else if (hash === 'blog') {
-        setView({ type: 'blog' });
-      } else if (hash === 'contact') {
-        setView({ type: 'contact' });
-      } else if (hash === 'privacy') {
-        setView({ type: 'privacy' });
-      } else if (hash === 'admin') {
-        setView({ type: 'admin' });
-      } else if (hash.startsWith('service/')) {
-        setView({ type: 'service', serviceId: hash.split('/')[1] });
-      } else if (hash.startsWith('package/')) {
-        setView({ type: 'package-detail', packageId: hash.split('/')[1] });
-      } else if (hash.startsWith('case/')) {
-        setView({ type: 'case-detail', caseId: hash.split('/')[1] });
-      } else if (hash.startsWith('blog/')) {
-        setView({ type: 'blog-post', postId: hash.split('/')[1] });
-      }
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Initial check
-
     // Initial Data Load
     const loadData = async () => {
        await dataManager.init();
        setDynamicCases(await dataManager.getCases());
        setDynamicPosts(await dataManager.getBlogPosts());
+       setServicesData(await dataManager.getServices());
     };
     loadData();
-
-    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   const navigateTo = (page: string) => {
-     window.location.hash = page;
+     window.scrollTo(0, 0);
+     if (page === 'home' || page === 'services' || page === 'cases' || page === 'about' || page === 'blog' || page === 'contact' || page === 'privacy' || page === 'admin') {
+         setView({ type: page });
+     } else {
+         // Fallback
+         setView({ type: 'home' });
+     }
   };
 
   const navigateToService = (serviceId: string) => {
-    window.location.hash = `service/${serviceId}`;
+    window.scrollTo(0, 0);
+    setView({ type: 'service', serviceId });
   };
 
   const navigateToPackage = (packageId: string) => {
-    window.location.hash = `package/${packageId}`;
+    window.scrollTo(0, 0);
+    setView({ type: 'package-detail', packageId });
   };
 
   const navigateToCase = (caseId: string) => {
-    window.location.hash = `case/${caseId}`;
+    window.scrollTo(0, 0);
+    setView({ type: 'case-detail', caseId });
   };
 
   const navigateToBlogPost = (postId: string) => {
-    window.location.hash = `blog/${postId}`;
+    window.scrollTo(0, 0);
+    setView({ type: 'blog-post', postId });
   };
 
   const handleQuickOrder = (serviceTitle: string) => {
     setSelectedContactService(serviceTitle);
-    window.location.hash = 'contact';
+    setView({ type: 'contact' });
+    window.scrollTo(0, 0);
   };
 
   const getCurrentPageKey = () => {
@@ -131,7 +108,7 @@ const App: React.FC = () => {
   let dynamicDescription;
   
   if (view.type === 'service') {
-    const s = SERVICES.find(s => s.id === view.serviceId);
+    const s = servicesData.find(s => s.id === view.serviceId);
     if (s) {
       dynamicTitle = s.title;
       dynamicDescription = s.description;
@@ -158,7 +135,12 @@ const App: React.FC = () => {
 
   // Admin View takes over full screen
   if (view.type === 'admin') {
-    return <AdminPanel onBack={() => navigateTo('home')} />;
+    return <AdminPanel onBack={() => {
+        // Reload data when returning from admin
+        dataManager.getServices().then(setServicesData);
+        dataManager.getCases().then(setDynamicCases);
+        navigateTo('home');
+    }} />;
   }
 
   return (
@@ -178,6 +160,7 @@ const App: React.FC = () => {
           <>
             <Hero onNavigate={navigateTo} />
             <Services 
+              services={servicesData}
               onSelectService={navigateToService} 
               onQuickOrder={handleQuickOrder}
               isHomePreview={true}
@@ -194,13 +177,14 @@ const App: React.FC = () => {
             <BlogPreview onSelectPost={navigateToBlogPost} onViewAll={() => navigateTo('blog')} />
             <FAQ />
             <Testimonials />
-            <ContactForm selectedService={selectedContactService} onNavigate={navigateTo} />
+            <ContactForm services={servicesData} selectedService={selectedContactService} onNavigate={navigateTo} />
           </>
         )}
 
         {view.type === 'services' && (
           <div className="pt-20">
              <Services 
+              services={servicesData}
               onSelectService={navigateToService} 
               onQuickOrder={handleQuickOrder}
               isHomePreview={false}
@@ -234,13 +218,13 @@ const App: React.FC = () => {
 
         {view.type === 'contact' && (
           <div className="pt-20 min-h-screen flex flex-col justify-center">
-            <ContactForm selectedService={selectedContactService} isPage={true} onNavigate={navigateTo} />
+            <ContactForm services={servicesData} selectedService={selectedContactService} isPage={true} onNavigate={navigateTo} />
           </div>
         )}
 
         {view.type === 'service' && (
           <ServiceDetail 
-            service={SERVICES.find(s => s.id === view.serviceId) || SERVICES[0]} 
+            service={servicesData.find(s => s.id === view.serviceId) || servicesData[0]} 
             onBack={() => navigateTo('services')}
             onNavigate={navigateTo}
           />

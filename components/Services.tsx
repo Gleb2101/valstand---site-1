@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { Target, Search, Share2, Code, ArrowRight, ArrowUpRight, Palette, PieChart } from 'lucide-react';
-import { SERVICES } from '../constants';
+import { Target, Search, Share2, Code, ArrowRight, ArrowUpRight, Palette, PieChart, Box } from 'lucide-react';
 import Packages from './Packages';
 import ScrollReveal from './ScrollReveal';
+import { ServiceItem } from '../types';
 
 const iconMap: Record<string, React.ReactNode> = {
   target: <Target size={32} />,
@@ -14,14 +14,18 @@ const iconMap: Record<string, React.ReactNode> = {
   chart: <PieChart size={32} />,
 };
 
+// Fallback icon
+const DefaultIcon = <Box size={32} />;
+
 interface ServicesProps {
+  services: ServiceItem[];
   onSelectService: (serviceId: string) => void;
   onQuickOrder: (serviceTitle: string) => void;
   isHomePreview?: boolean;
   onViewPackage?: (packageId: string) => void;
 }
 
-const Services: React.FC<ServicesProps> = ({ onSelectService, onQuickOrder, isHomePreview = false, onViewPackage }) => {
+const Services: React.FC<ServicesProps> = ({ services, onSelectService, onQuickOrder, isHomePreview = false, onViewPackage }) => {
   return (
     <>
       <section id="services" className={`bg-slate-50 relative ${isHomePreview ? 'py-24' : 'py-12 pb-24'}`}>
@@ -38,13 +42,13 @@ const Services: React.FC<ServicesProps> = ({ onSelectService, onQuickOrder, isHo
           </ScrollReveal>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {SERVICES.map((service, index) => (
+            {services.map((service, index) => (
               <ScrollReveal key={service.id} delay={index * 100}>
                 <div 
                   className="group glass-panel p-8 rounded-2xl hover:bg-white transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col h-full"
                 >
                   <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center text-brand-orange mb-6 group-hover:scale-110 transition-transform duration-300 border border-slate-200">
-                    {iconMap[service.icon]}
+                    {iconMap[service.icon] || DefaultIcon}
                   </div>
                   
                   <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-brand-orange transition-colors">
