@@ -53,9 +53,10 @@ const postData = async (endpoint: string, data: any) => {
             const errText = await res.text();
             throw new Error(`Server error: ${res.status} ${errText}`);
         }
-    } catch (e) {
+    } catch (e: any) {
         console.error(`Save to ${endpoint} failed`, e);
-        alert(`Ошибка сохранения данных: ${e.message}. \nУбедитесь, что сервер запущен на порту 3001.`);
+        const errorMsg = e?.message || String(e);
+        alert(`Ошибка сохранения данных: ${errorMsg}. \nУбедитесь, что сервер запущен на порту 3001.`);
         throw e; 
     }
 };
