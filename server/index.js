@@ -32,19 +32,22 @@ if (fs.existsSync(distPath)) {
 }
 
 // Database Connection
-// Используем try/catch при создании пула, чтобы ошибка БД не роняла сервер сразу
+// Используем try/catch при создании пула
 let pool;
 try {
     pool = mysql.createPool({
-        host: '127.0.0.1', 
-        port: 3310,
-        user: 'p592462_valstand', 
-        password: 'lA5gJ2dX1j',    
-        database: 'p592462_valstand', 
+        host: '172.17.0.2', 
+        port: 3306,
+        user: 'root', 
+        password: '',    
+        database: 'root_1', 
         waitForConnections: true,
         connectionLimit: 10,
-        queueLimit: 0
+        queueLimit: 0,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0
     });
+    console.log('Database pool created (lazy connection)');
 } catch (err) {
     console.error("Database Config Error:", err);
 }
@@ -53,6 +56,20 @@ try {
 
 app.get('/api', (req, res) => {
     res.send('API Backend is running correctly!');
+});
+
+// Роут для проверки состояния БД
+app.get('/api/status', async (req, res) => {
+    try {
+        if (!pool) throw new Error("Pool not created");
+        const connection = await pool.getConnection();
+        await connection.ping();
+        connection.release();
+        res.json({ status: 'ok', message: 'Database connected successfully' });
+    } catch (e) {
+        console.error("DB Connection Test Failed:", e);
+        res.status(500).json({ status: 'error', message: e.message });
+    }
 });
 
 app.get('/setup', async (req, res) => {
