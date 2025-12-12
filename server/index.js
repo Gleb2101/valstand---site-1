@@ -36,10 +36,11 @@ if (fs.existsSync(distPath)) {
 let pool;
 try {
     pool = mysql.createPool({
-        host: 'localhost', 
-        user: 'p592462_valstand', // Проверьте пользователя в ISPmanager -> Базы данных
-        password: 'lA5gJ2dX1j',    // Проверьте пароль
-        database: 'p592462_valstand', // Проверьте имя БД
+        host: '127.0.0.1', 
+        port: 3310,
+        user: 'p592462_valstand', 
+        password: 'lA5gJ2dX1j',    
+        database: 'p592462_valstand', 
         waitForConnections: true,
         connectionLimit: 10,
         queueLimit: 0
