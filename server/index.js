@@ -23,6 +23,8 @@ const distPath = path.join(__dirname, '../dist');
 console.log('--- Server Startup ---');
 console.log(`API running on port: ${PORT}`);
 console.log(`Static files path: ${distPath}`);
+
+// Проверка наличия папки dist при старте
 if (fs.existsSync(distPath)) {
     console.log('SUCCESS: Dist folder found.');
 } else {
@@ -30,15 +32,21 @@ if (fs.existsSync(distPath)) {
 }
 
 // Database Connection
-const pool = mysql.createPool({
-    host: 'localhost', 
-    user: 'p592462_valstand', // Проверьте пользователя в ISPmanager -> Базы данных
-    password: 'lA5gJ2dX1j',    // Проверьте пароль
-    database: 'p592462_valstand', // Проверьте имя БД
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0
-});
+// Используем try/catch при создании пула, чтобы ошибка БД не роняла сервер сразу
+let pool;
+try {
+    pool = mysql.createPool({
+        host: 'localhost', 
+        user: 'p592462_valstand', // Проверьте пользователя в ISPmanager -> Базы данных
+        password: 'lA5gJ2dX1j',    // Проверьте пароль
+        database: 'p592462_valstand', // Проверьте имя БД
+        waitForConnections: true,
+        connectionLimit: 10,
+        queueLimit: 0
+    });
+} catch (err) {
+    console.error("Database Config Error:", err);
+}
 
 // --- API Routes ---
 
@@ -47,6 +55,7 @@ app.get('/api', (req, res) => {
 });
 
 app.get('/setup', async (req, res) => {
+    if (!pool) return res.status(500).send("Database connection failed");
     try {
         const queries = [
             `CREATE TABLE IF NOT EXISTS leads (
@@ -113,6 +122,7 @@ app.get('/setup', async (req, res) => {
 const createCrudHandlers = (table, isJsonData = true) => {
     app.get(`/api/${table}`, async (req, res) => {
         try {
+            if (!pool) throw new Error("Database not connected");
             const [rows] = await pool.query(`SELECT * FROM ${table}`);
             if (isJsonData) {
                 const items = rows.map(r => {
@@ -130,6 +140,7 @@ const createCrudHandlers = (table, isJsonData = true) => {
 
     app.post(`/api/${table}`, async (req, res) => {
         try {
+            if (!pool) throw new Error("Database not connected");
             const item = req.body;
             const id = item.id;
             if (!id) return res.status(400).json({ error: 'ID required' });
@@ -166,6 +177,7 @@ const createCrudHandlers = (table, isJsonData = true) => {
 
     app.delete(`/api/${table}/:id`, async (req, res) => {
         try {
+            if (!pool) throw new Error("Database not connected");
             await pool.query(`DELETE FROM ${table} WHERE id = ?`, [req.params.id]);
             res.json({ success: true });
         } catch (error) {
@@ -178,6 +190,7 @@ const createCrudHandlers = (table, isJsonData = true) => {
 // Routes Implementation
 app.get('/api/leads', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         const [rows] = await pool.query('SELECT * FROM leads ORDER BY date DESC');
         res.json(rows);
     } catch (e) { res.status(500).json(e); }
@@ -185,6 +198,7 @@ app.get('/api/leads', async (req, res) => {
 
 app.post('/api/leads', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         const { id, name, phone, service, status, date } = req.body;
         const validDate = date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ');
         await pool.query(
@@ -199,6 +213,7 @@ app.post('/api/leads', async (req, res) => {
 
 app.put('/api/leads/:id', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         const { status } = req.body;
         await pool.query('UPDATE leads SET status = ? WHERE id = ?', [status, req.params.id]);
         res.json({ success: true });
@@ -207,6 +222,7 @@ app.put('/api/leads/:id', async (req, res) => {
 
 app.delete('/api/leads/:id', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         await pool.query('DELETE FROM leads WHERE id = ?', [req.params.id]);
         res.json({ success: true });
     } catch (e) { res.status(500).json(e); }
@@ -222,6 +238,7 @@ createCrudHandlers('services');
 
 app.get('/api/settings', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         const [rows] = await pool.query('SELECT * FROM settings');
         const settings = {};
         rows.forEach(r => {
@@ -235,6 +252,7 @@ app.get('/api/settings', async (req, res) => {
 
 app.post('/api/settings', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         const dataStr = JSON.stringify(req.body);
         await pool.query(
             "INSERT INTO settings (setting_key, data) VALUES ('global', ?) ON DUPLICATE KEY UPDATE data=VALUES(data)", 
@@ -246,6 +264,7 @@ app.post('/api/settings', async (req, res) => {
 
 app.get('/api/categories', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         const [rows] = await pool.query('SELECT name FROM categories');
         res.json(rows.map(r => r.name));
     } catch (e) { res.status(500).json(e); }
@@ -253,6 +272,7 @@ app.get('/api/categories', async (req, res) => {
 
 app.post('/api/categories', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         await pool.query('INSERT IGNORE INTO categories (name) VALUES (?)', [req.body.name]);
         res.json({ success: true });
     } catch (e) { res.status(500).json(e); }
@@ -260,6 +280,7 @@ app.post('/api/categories', async (req, res) => {
 
 app.delete('/api/categories/:name', async (req, res) => {
     try {
+        if (!pool) throw new Error("Database not connected");
         await pool.query('DELETE FROM categories WHERE name = ?', [req.params.name]);
         res.json({ success: true });
     } catch (e) { res.status(500).json(e); }
@@ -268,9 +289,28 @@ app.delete('/api/categories/:name', async (req, res) => {
 // --- Static Files (Frontend) ---
 app.use(express.static(distPath));
 
-// Любой другой запрос отправляем на index.html (для React Router)
+// Fallback Handler с отладкой
 app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    // Если файла нет, возвращаем понятную ошибку вместо "Cannot GET /"
+    res.status(404).send(`
+      <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #ccc; border-radius: 8px; background: #fff9f9;">
+        <h1 style="color: #d32f2f;">Ошибка: Сайт не найден (Frontend missing)</h1>
+        <p>Сервер запущен, но не может найти файл <code>index.html</code> для отображения сайта.</p>
+        <hr />
+        <h3>Что делать?</h3>
+        <ol>
+          <li>Убедитесь, что вы запустили <code>npm run build</code> на компьютере.</li>
+          <li>Убедитесь, что папка <code>dist</code> загружена на сервер.</li>
+          <li>Она должна лежать РЯДОМ с папкой <code>server</code>, а не внутри неё.</li>
+        </ol>
+        <p><strong>Путь, по которому сервер ищет сайт:</strong><br /><code>${indexPath}</code></p>
+      </div>
+    `);
+  }
 });
 
 app.listen(PORT, () => {
