@@ -2,8 +2,6 @@
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, StoredImage, ServiceItem } from '../types';
 import { CASES, TESTIMONIALS, TEAM_MEMBERS, BLOG_POSTS, BLOG_CATEGORIES, SERVICES } from '../constants';
 
-// Так как мы раздаем статику через Node.js, API всегда доступно по относительному пути '/api'
-// Это работает и локально (через прокси Vite), и на продакшене.
 const API_URL = '/api';
 
 const DEFAULT_SEO = {
@@ -19,6 +17,24 @@ const DEFAULT_SEO = {
   about: { title: 'О нас', description: '' },
   blog: { title: 'Блог', description: '' },
   contact: { title: 'Контакты', description: '' }
+};
+
+// Cache storage
+const cache: Record<string, Promise<any> | null> = {
+    services: null,
+    cases: null,
+    testimonials: null,
+    team: null,
+    blog_posts: null,
+    categories: null,
+    popups: null,
+    settings: null,
+    images: null
+};
+
+// Helper to clear cache
+const invalidateCache = (key: string) => {
+    cache[key] = null;
 };
 
 // Fallback to constants if server is offline
@@ -37,6 +53,18 @@ const fetchWithFallback = async <T>(endpoint: string, fallback: T): Promise<T> =
     if (ls) return JSON.parse(ls);
     return fallback;
   }
+};
+
+// Helper for cached requests
+const getCached = <T>(key: string, endpoint: string, fallback: T): Promise<T> => {
+    if (!cache[key]) {
+        // Create the promise and store it immediately to prevent race conditions
+        cache[key] = fetchWithFallback(endpoint, fallback).catch(err => {
+            cache[key] = null; // Reset cache on error so we can try again
+            throw err;
+        });
+    }
+    return cache[key];
 };
 
 const postData = async (endpoint: string, data: any) => {
@@ -79,35 +107,68 @@ export const dataManager = {
   },
 
   // Services
-  getServices: async (): Promise<ServiceItem[]> => fetchWithFallback('services', SERVICES),
-  saveService: async (item: ServiceItem) => postData('services', item),
-  deleteService: async (id: string) => deleteData('services', id),
+  getServices: (): Promise<ServiceItem[]> => getCached('services', 'services', SERVICES),
+  saveService: async (item: ServiceItem) => {
+      await postData('services', item);
+      invalidateCache('services');
+  },
+  deleteService: async (id: string) => {
+      await deleteData('services', id);
+      invalidateCache('services');
+  },
 
   // Cases
-  getCases: async (): Promise<CaseStudy[]> => fetchWithFallback('cases', CASES),
-  saveCase: async (item: CaseStudy) => postData('cases', item),
-  deleteCase: async (id: string) => deleteData('cases', id),
+  getCases: (): Promise<CaseStudy[]> => getCached('cases', 'cases', CASES),
+  saveCase: async (item: CaseStudy) => {
+      await postData('cases', item);
+      invalidateCache('cases');
+  },
+  deleteCase: async (id: string) => {
+      await deleteData('cases', id);
+      invalidateCache('cases');
+  },
 
   // Testimonials
-  getTestimonials: async (): Promise<Testimonial[]> => fetchWithFallback('testimonials', TESTIMONIALS),
-  saveTestimonial: async (item: Testimonial) => postData('testimonials', item),
-  deleteTestimonial: async (id: number) => deleteData('testimonials', id),
+  getTestimonials: (): Promise<Testimonial[]> => getCached('testimonials', 'testimonials', TESTIMONIALS),
+  saveTestimonial: async (item: Testimonial) => {
+      await postData('testimonials', item);
+      invalidateCache('testimonials');
+  },
+  deleteTestimonial: async (id: number) => {
+      await deleteData('testimonials', id);
+      invalidateCache('testimonials');
+  },
 
   // Team
-  getTeam: async (): Promise<TeamMember[]> => fetchWithFallback('team', TEAM_MEMBERS),
-  saveTeamMember: async (item: TeamMember) => postData('team', item),
+  getTeam: (): Promise<TeamMember[]> => getCached('team', 'team', TEAM_MEMBERS),
+  saveTeamMember: async (item: TeamMember) => {
+      await postData('team', item);
+      invalidateCache('team');
+  },
 
   // Blog
-  getBlogPosts: async (): Promise<BlogPost[]> => fetchWithFallback('blog_posts', BLOG_POSTS),
-  saveBlogPost: async (item: BlogPost) => postData('blog_posts', item),
-  deleteBlogPost: async (id: string) => deleteData('blog_posts', id),
+  getBlogPosts: (): Promise<BlogPost[]> => getCached('blog_posts', 'blog_posts', BLOG_POSTS),
+  saveBlogPost: async (item: BlogPost) => {
+      await postData('blog_posts', item);
+      invalidateCache('blog_posts');
+  },
+  deleteBlogPost: async (id: string) => {
+      await deleteData('blog_posts', id);
+      invalidateCache('blog_posts');
+  },
 
   // Categories
-  getCategories: async (): Promise<string[]> => fetchWithFallback('categories', BLOG_CATEGORIES.filter(c => c !== 'Все')),
-  addCategory: async (cat: string) => postData('categories', { name: cat }),
-  deleteCategory: async (cat: string) => deleteData('categories', cat),
+  getCategories: (): Promise<string[]> => getCached('categories', 'categories', BLOG_CATEGORIES.filter(c => c !== 'Все')),
+  addCategory: async (cat: string) => {
+      await postData('categories', { name: cat });
+      invalidateCache('categories');
+  },
+  deleteCategory: async (cat: string) => {
+      await deleteData('categories', cat);
+      invalidateCache('categories');
+  },
 
-  // Leads
+  // Leads (No caching needed for volatile data)
   getLeads: async (): Promise<Lead[]> => fetchWithFallback('leads', []),
   addLead: async (lead: Omit<Lead, 'id' | 'date' | 'status'>) => {
     const date = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -131,21 +192,40 @@ export const dataManager = {
   deleteLead: async (id: string) => deleteData('leads', id),
 
   // Popups
-  getPopups: async (): Promise<Popup[]> => fetchWithFallback('popups', []),
-  savePopup: async (item: Popup) => postData('popups', item),
-  deletePopup: async (id: string) => deleteData('popups', id),
+  getPopups: (): Promise<Popup[]> => getCached('popups', 'popups', []),
+  savePopup: async (item: Popup) => {
+      await postData('popups', item);
+      invalidateCache('popups');
+  },
+  deletePopup: async (id: string) => {
+      await deleteData('popups', id);
+      invalidateCache('popups');
+  },
 
   // Images
-  getImages: async (): Promise<StoredImage[]> => fetchWithFallback('images', []),
-  saveImage: async (item: StoredImage) => postData('images', item),
-  deleteImage: async (id: string) => deleteData('images', id),
+  getImages: (): Promise<StoredImage[]> => getCached('images', 'images', []),
+  saveImage: async (item: StoredImage) => {
+      await postData('images', item);
+      invalidateCache('images');
+  },
+  deleteImage: async (id: string) => {
+      await deleteData('images', id);
+      invalidateCache('images');
+  },
 
   // Settings
   getSettings: async (): Promise<SiteSettings> => {
+      if (cache.settings) return cache.settings;
+      
       const fallback = { headerCode: '', footerCode: '', seo: DEFAULT_SEO, socials: {} };
-      const settings = await fetchWithFallback('settings', fallback);
-      if (!settings.seo) settings.seo = DEFAULT_SEO;
-      return settings;
+      cache.settings = fetchWithFallback('settings', fallback).then(settings => {
+           if (!settings.seo) settings.seo = DEFAULT_SEO;
+           return settings;
+      });
+      return cache.settings;
   },
-  saveSettings: async (settings: SiteSettings) => postData('settings', settings)
+  saveSettings: async (settings: SiteSettings) => {
+      await postData('settings', settings);
+      invalidateCache('settings');
+  }
 };

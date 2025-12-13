@@ -6,13 +6,14 @@ import { Calendar, User, ArrowRight, Loader } from 'lucide-react';
 
 interface BlogPageProps {
   onSelectPost: (postId: string) => void;
+  initialPosts?: BlogPost[];
 }
 
-const BlogPage: React.FC<BlogPageProps> = ({ onSelectPost }) => {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+const BlogPage: React.FC<BlogPageProps> = ({ onSelectPost, initialPosts }) => {
+  const [posts, setPosts] = useState<BlogPost[]>(initialPosts || []);
+  const [categories, setCategories] = useState<string[]>(['Все']);
   const [selectedCategory, setSelectedCategory] = useState('Все');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPosts || initialPosts.length === 0);
   
   // Pagination State
   const [page, setPage] = useState(1);
@@ -23,15 +24,23 @@ const BlogPage: React.FC<BlogPageProps> = ({ onSelectPost }) => {
   useEffect(() => {
     window.scrollTo(0, 0);
     const loadData = async () => {
-        setLoading(true);
-        const allPosts = await dataManager.getBlogPosts();
+        if (!initialPosts) setLoading(true);
+        
+        // We might already have posts, but we need categories
         const cats = await dataManager.getCategories();
-        setPosts(allPosts);
         setCategories(['Все', ...cats]);
-        setLoading(false);
+        
+        if (!initialPosts) {
+            const allPosts = await dataManager.getBlogPosts();
+            setPosts(allPosts);
+            setLoading(false);
+        } else {
+            setPosts(initialPosts);
+            setLoading(false);
+        }
     };
     loadData();
-  }, []);
+  }, [initialPosts]);
 
   // Filter Posts
   const filteredPosts = useMemo(() => {

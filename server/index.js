@@ -1,4 +1,3 @@
-
 import express from 'express';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
@@ -7,260 +6,222 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
-// Настройка путей для ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001; 
 
-// Включаем доверие к Nginx прокси (важно для правильного IP адреса клиентов)
 app.enable('trust proxy');
-
-// Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 
-// Логирование всех запросов (чтобы видеть в pm2 logs, доходят ли запросы от Nginx)
+// Логирование
 app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+    if (!req.url.match(/\.(js|css|png|jpg|ico|svg|woff2)$/)) {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+    }
     next();
 });
 
-// Логирование для отладки путей на сервере
 const distPath = path.join(__dirname, '../dist');
-console.log('--- Server Startup ---');
-console.log(`API running on port: ${PORT}`);
-console.log(`Static files path: ${distPath}`);
 
-// Проверка наличия папки dist при старте
-if (fs.existsSync(distPath)) {
-    console.log('SUCCESS: Dist folder found.');
-} else {
-    console.error('ERROR: Dist folder NOT found! Check your upload structure.');
-}
+// --- DATABASE CONNECTION ---
+let pool = null;
 
-// Database Connection
-let pool;
+const connectDB = async () => {
+    // Базовая конфигурация по вашему запросу
+    const dbConfig = {
+        host: 'localhost',      // Используем localhost
+        user: 'root_1',         // Ваш пользователь
+        password: 'BZjAFGph7c', // Ваш пароль
+        database: 'root_1',     // Ваша база
+        port: 3306,
+        waitForConnections: true,
+        connectionLimit: 10,
+        connectTimeout: 5000 
+    };
 
-// !!! ВНИМАНИЕ: Проверьте эти данные в ISPmanager -> Базы данных !!!
-const dbConfig = {
-    host: 'localhost',       
-    port: 3306,             
-    user: 'p592462_valstand',  // <-- Проверьте имя пользователя (обычно с префиксом)
-    password: 'lA5gJ2dX1j',    // <-- Проверьте пароль
-    database: 'p592462_valstand', // <-- Проверьте имя базы данных
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    enableKeepAlive: true,
-    keepAliveInitialDelay: 0
+    // Улучшение для Linux серверов: 
+    // Node.js mysql2 драйвер иногда требует явного указания пути к сокету для localhost
+    if (process.platform !== 'win32') {
+        const possibleSockets = [
+            '/var/run/mysqld/mysqld.sock', // Ubuntu/Debian standard
+            '/tmp/mysql.sock',             // Custom/MAMP/XAMPP
+            '/var/lib/mysql/mysql.sock'    // CentOS/RHEL
+        ];
+        
+        const foundSocket = possibleSockets.find(s => fs.existsSync(s));
+        
+        if (foundSocket) {
+            console.log(`[DB] Auto-detected MySQL socket at: ${foundSocket}`);
+            console.log(`[DB] Switching from 'localhost' to socket connection for better stability.`);
+            delete dbConfig.host; // Удаляем host, чтобы принудительно использовать сокет
+            delete dbConfig.port;
+            dbConfig.socketPath = foundSocket;
+        } else {
+            console.log(`[DB] No socket found. Connecting via TCP to ${dbConfig.host}:${dbConfig.port}`);
+        }
+    }
+
+    try {
+        pool = mysql.createPool(dbConfig);
+        // Проверяем соединение
+        const connection = await pool.getConnection();
+        console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
+        
+        // Инициализация таблиц
+        await initTables(connection);
+        
+        connection.release();
+    } catch (err) {
+        console.error('❌ DATABASE CONNECTION FAILED');
+        console.error(`Error Code: ${err.code}`);
+        console.error(`Error Message: ${err.message}`);
+        console.error('---');
+        console.error('Server is switching to STATIC MODE. API will return empty data, but the site will load.');
+        console.error('To fix DB: Run "node server/diagnose.js"');
+        pool = null; 
+    }
 };
 
-try {
-    console.log(`Attempting to connect to DB as user: ${dbConfig.user} on database: ${dbConfig.database}`);
-    pool = mysql.createPool(dbConfig);
-    console.log('Database pool created (lazy connection)');
-} catch (err) {
-    console.error("Database Config Error:", err);
-}
-
-// --- API Routes ---
-
-app.get('/api', (req, res) => {
-    res.send('API Backend is running correctly!');
-});
-
-// Роут для проверки состояния БД
-app.get('/api/status', async (req, res) => {
+const initTables = async (connection) => {
     try {
-        if (!pool) throw new Error("Pool not created");
-        const connection = await pool.getConnection();
-        await connection.ping();
-        connection.release();
-        res.json({ status: 'ok', message: 'Database connected successfully' });
+        await connection.query(`CREATE TABLE IF NOT EXISTS leads (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), phone VARCHAR(255), service VARCHAR(255), status VARCHAR(50), date DATETIME)`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS cases (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS services (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS blog_posts (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), category VARCHAR(255), data LONGTEXT)`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS images (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), data LONGTEXT)`);
+        const simpleTables = ['team', 'testimonials', 'popups'];
+        for (const t of simpleTables) {
+            await connection.query(`CREATE TABLE IF NOT EXISTS ${t} (id VARCHAR(255) PRIMARY KEY, data LONGTEXT)`);
+        }
+        await connection.query(`CREATE TABLE IF NOT EXISTS settings (setting_key VARCHAR(255) PRIMARY KEY, data LONGTEXT)`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS categories (name VARCHAR(255) PRIMARY KEY)`);
     } catch (e) {
-        console.error("DB Connection Test Failed:", e);
-        // Возвращаем подробную ошибку, чтобы вы видели её в браузере
-        res.status(500).json({ 
-            status: 'error', 
-            message: e.message, 
-            code: e.code,
-            hint: "Check ISPmanager -> Databases for correct User and Password"
-        });
+        console.error("Table init error:", e.message);
     }
+};
+
+// Запускаем подключение
+connectDB();
+
+// --- API ROUTES ---
+
+// Middleware для проверки БД
+const dbCheck = (req, res, next) => {
+    if (!pool) {
+        if (req.method === 'GET') return res.json([]);
+        return res.status(503).json({ error: "Database unavailable (Static Mode)", success: false });
+    }
+    next();
+};
+
+app.get('/api/status', async (req, res) => {
+    if(pool) res.json({ status: 'ok', db: 'connected' });
+    else res.json({ status: 'ok', db: 'disconnected' });
 });
 
-app.get('/setup', async (req, res) => {
-    if (!pool) return res.status(500).send("Database connection failed");
-    try {
-        const queries = [
-            `CREATE TABLE IF NOT EXISTS leads (
-                id VARCHAR(50) PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                phone VARCHAR(50) NOT NULL,
-                service VARCHAR(255),
-                status VARCHAR(50) DEFAULT 'new',
-                date DATETIME
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS settings (
-                setting_key VARCHAR(50) PRIMARY KEY,
-                data LONGTEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS categories (
-                name VARCHAR(100) PRIMARY KEY
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS testimonials (
-                id VARCHAR(50) PRIMARY KEY, 
-                data LONGTEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS team (
-                id VARCHAR(50) PRIMARY KEY, 
-                data LONGTEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS popups (
-                id VARCHAR(50) PRIMARY KEY, 
-                data LONGTEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS cases (
-                id VARCHAR(50) PRIMARY KEY,
-                title VARCHAR(255),
-                data LONGTEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS blog_posts (
-                id VARCHAR(50) PRIMARY KEY,
-                title VARCHAR(255),
-                category VARCHAR(100),
-                data LONGTEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS services (
-                id VARCHAR(50) PRIMARY KEY,
-                title VARCHAR(255),
-                data LONGTEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
-            `CREATE TABLE IF NOT EXISTS images (
-                id VARCHAR(50) PRIMARY KEY,
-                name VARCHAR(255),
-                data LONGTEXT
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
-        ];
-
-        for (const query of queries) {
-            await pool.query(query);
-        }
-
-        res.send(`<h1>База данных успешно настроена!</h1><a href="/">Вернуться на сайт</a>`);
-    } catch (error) {
-        console.error("Setup Error:", error);
-        res.status(500).send(`<h1>Ошибка настройки БД</h1><p>Проверьте данные подключения в server/index.js</p><pre>${error.message}</pre>`);
-    }
-});
-
-const createCrudHandlers = (table, isJsonData = true) => {
-    app.get(`/api/${table}`, async (req, res) => {
+const createCrudHandlers = (table) => {
+    app.get(`/api/${table}`, dbCheck, async (req, res) => {
         try {
-            if (!pool) throw new Error("Database not connected");
             const [rows] = await pool.query(`SELECT * FROM ${table}`);
-            if (isJsonData) {
-                const items = rows.map(r => {
-                    try { return JSON.parse(r.data); } catch (e) { return { id: r.id, error: 'Corrupt Data' }; }
-                });
-                res.json(items);
-            } else {
-                res.json(rows);
-            }
-        } catch (error) {
-            console.error(`GET ${table} Error:`, error);
-            res.status(500).json({ error: error.message });
-        }
+            const items = rows.map(r => { try { return JSON.parse(r.data); } catch (e) { return { id: r.id }; } });
+            res.json(items);
+        } catch (error) { res.status(500).json({ error: error.message }); }
     });
 
-    app.post(`/api/${table}`, async (req, res) => {
+    app.post(`/api/${table}`, dbCheck, async (req, res) => {
         try {
-            if (!pool) throw new Error("Database not connected");
             const item = req.body;
-            const id = item.id;
-            if (!id) return res.status(400).json({ error: 'ID required' });
-
             const dataStr = JSON.stringify(item);
             
             if (table === 'blog_posts') {
-                 await pool.query(
-                    `INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, 
-                    [id, item.title, item.category, dataStr]
-                 );
+                 await pool.query(`INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, [item.id, item.title, item.category, dataStr]);
             } else if (table === 'cases' || table === 'services') {
-                 await pool.query(
-                    `INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, 
-                    [id, item.title, dataStr]
-                 );
+                 await pool.query(`INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, [item.id, item.title, dataStr]);
             } else if (table === 'images') {
-                 await pool.query(
-                    `INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, 
-                    [id, item.name, item.data]
-                 );
+                 await pool.query(`INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, [item.id, item.name, item.data]);
             } else {
-                 await pool.query(
-                    `INSERT INTO ${table} (id, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)`, 
-                    [id, dataStr]
-                 );
+                 await pool.query(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)`, [item.id, dataStr]);
             }
             res.json({ success: true });
-        } catch (error) {
-            console.error(`POST ${table} Error:`, error);
-            res.status(500).json({ error: error.message });
-        }
+        } catch (error) { res.status(500).json({ error: error.message }); }
     });
 
-    app.delete(`/api/${table}/:id`, async (req, res) => {
+    app.delete(`/api/${table}/:id`, dbCheck, async (req, res) => {
         try {
-            if (!pool) throw new Error("Database not connected");
             await pool.query(`DELETE FROM ${table} WHERE id = ?`, [req.params.id]);
             res.json({ success: true });
-        } catch (error) {
-            console.error(`DELETE ${table} Error:`, error);
-            res.status(500).json({ error: error.message });
-        }
+        } catch (error) { res.status(500).json({ error: error.message }); }
     });
 };
 
-// Routes Implementation
-app.get('/api/leads', async (req, res) => {
+app.get('/api/leads', dbCheck, async (req, res) => {
     try {
-        if (!pool) throw new Error("Database not connected");
         const [rows] = await pool.query('SELECT * FROM leads ORDER BY date DESC');
         res.json(rows);
     } catch (e) { res.status(500).json(e); }
 });
 
-app.post('/api/leads', async (req, res) => {
+app.post('/api/leads', dbCheck, async (req, res) => {
     try {
-        if (!pool) throw new Error("Database not connected");
         const { id, name, phone, service, status, date } = req.body;
         const validDate = date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ');
-        await pool.query(
-            'INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status)',
-            [id, name, phone, service, status, validDate]
-        );
+        await pool.query('INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status)', [id, name, phone, service, status, validDate]);
         res.json({ success: true });
-    } catch (e) { 
-        res.status(500).json({ error: e.message }); 
-    }
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/leads/:id', async (req, res) => {
+app.put('/api/leads/:id', dbCheck, async (req, res) => {
     try {
-        if (!pool) throw new Error("Database not connected");
         const { status } = req.body;
         await pool.query('UPDATE leads SET status = ? WHERE id = ?', [status, req.params.id]);
         res.json({ success: true });
     } catch (e) { res.status(500).json(e); }
 });
 
-app.delete('/api/leads/:id', async (req, res) => {
+app.delete('/api/leads/:id', dbCheck, async (req, res) => {
     try {
-        if (!pool) throw new Error("Database not connected");
         await pool.query('DELETE FROM leads WHERE id = ?', [req.params.id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json(e); }
+});
+
+app.get('/api/settings', dbCheck, async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT * FROM settings');
+        const settings = {};
+        rows.forEach(r => { if (r.setting_key === 'global') try { Object.assign(settings, JSON.parse(r.data)); } catch (e) {} });
+        res.json(settings);
+    } catch (e) { res.status(500).json(e); }
+});
+
+app.post('/api/settings', dbCheck, async (req, res) => {
+    try {
+        const dataStr = JSON.stringify(req.body);
+        await pool.query("INSERT INTO settings (setting_key, data) VALUES ('global', ?) ON DUPLICATE KEY UPDATE data=VALUES(data)", [dataStr]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json(e); }
+});
+
+app.get('/api/categories', dbCheck, async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT name FROM categories');
+        res.json(rows.map(r => r.name));
+    } catch (e) { res.status(500).json(e); }
+});
+
+app.post('/api/categories', dbCheck, async (req, res) => {
+    try {
+        await pool.query('INSERT IGNORE INTO categories (name) VALUES (?)', [req.body.name]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json(e); }
+});
+
+app.delete('/api/categories/:name', dbCheck, async (req, res) => {
+    try {
+        await pool.query('DELETE FROM categories WHERE name = ?', [req.params.name]);
         res.json({ success: true });
     } catch (e) { res.status(500).json(e); }
 });
@@ -273,80 +234,21 @@ createCrudHandlers('images');
 createCrudHandlers('blog_posts');
 createCrudHandlers('services');
 
-app.get('/api/settings', async (req, res) => {
-    try {
-        if (!pool) throw new Error("Database not connected");
-        const [rows] = await pool.query('SELECT * FROM settings');
-        const settings = {};
-        rows.forEach(r => {
-             if (r.setting_key === 'global') {
-                 try { Object.assign(settings, JSON.parse(r.data)); } catch (e) {}
-             }
-        });
-        res.json(settings);
-    } catch (e) { res.status(500).json(e); }
-});
 
-app.post('/api/settings', async (req, res) => {
-    try {
-        if (!pool) throw new Error("Database not connected");
-        const dataStr = JSON.stringify(req.body);
-        await pool.query(
-            "INSERT INTO settings (setting_key, data) VALUES ('global', ?) ON DUPLICATE KEY UPDATE data=VALUES(data)", 
-            [dataStr]
-        );
-        res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
-});
+// --- STATIC FILES ---
+app.use(express.static(distPath, {
+  maxAge: '1d', 
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+  }
+}));
 
-app.get('/api/categories', async (req, res) => {
-    try {
-        if (!pool) throw new Error("Database not connected");
-        const [rows] = await pool.query('SELECT name FROM categories');
-        res.json(rows.map(r => r.name));
-    } catch (e) { res.status(500).json(e); }
-});
-
-app.post('/api/categories', async (req, res) => {
-    try {
-        if (!pool) throw new Error("Database not connected");
-        await pool.query('INSERT IGNORE INTO categories (name) VALUES (?)', [req.body.name]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
-});
-
-app.delete('/api/categories/:name', async (req, res) => {
-    try {
-        if (!pool) throw new Error("Database not connected");
-        await pool.query('DELETE FROM categories WHERE name = ?', [req.params.name]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
-});
-
-// --- Static Files (Frontend) ---
-app.use(express.static(distPath));
-
-// Fallback Handler с отладкой
 app.get('*', (req, res) => {
   const indexPath = path.join(distPath, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
-    // Если файла нет, возвращаем понятную ошибку вместо "Cannot GET /"
-    res.status(404).send(`
-      <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #ccc; border-radius: 8px; background: #fff9f9;">
-        <h1 style="color: #d32f2f;">Ошибка: Сайт не найден (Frontend missing)</h1>
-        <p>Сервер запущен, но не может найти файл <code>index.html</code> для отображения сайта.</p>
-        <hr />
-        <h3>Что делать?</h3>
-        <ol>
-          <li>Убедитесь, что вы запустили <code>npm run build</code> на компьютере.</li>
-          <li>Убедитесь, что папка <code>dist</code> загружена на сервер.</li>
-          <li>Она должна лежать РЯДОМ с папкой <code>server</code>, а не внутри неё.</li>
-        </ol>
-        <p><strong>Путь, по которому сервер ищет сайт:</strong><br /><code>${indexPath}</code></p>
-      </div>
-    `);
+    res.status(500).send('Error: Build not found.');
   }
 });
 

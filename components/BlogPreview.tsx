@@ -8,18 +8,23 @@ import ScrollReveal from './ScrollReveal';
 interface BlogPreviewProps {
   onSelectPost: (postId: string) => void;
   onViewAll: () => void;
+  initialPosts?: BlogPost[];
 }
 
-const BlogPreview: React.FC<BlogPreviewProps> = ({ onSelectPost, onViewAll }) => {
-  const [posts, setPosts] = useState<BlogPost[]>([]);
+const BlogPreview: React.FC<BlogPreviewProps> = ({ onSelectPost, onViewAll, initialPosts }) => {
+  const [posts, setPosts] = useState<BlogPost[]>(initialPosts ? initialPosts.slice(0, 3) : []);
 
   useEffect(() => {
+    if (initialPosts && initialPosts.length > 0) {
+        setPosts(initialPosts.slice(0, 3));
+        return;
+    }
     const load = async () => {
         const allPosts = await dataManager.getBlogPosts();
         setPosts(allPosts.slice(0, 3));
     };
     load();
-  }, []);
+  }, [initialPosts]);
 
   if (posts.length === 0) return null;
 

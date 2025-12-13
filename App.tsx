@@ -24,6 +24,7 @@ import BlogPostView from './components/BlogPost';
 import { SERVICES as STATIC_SERVICES, PACKAGES } from './constants';
 import { dataManager } from './services/dataManager';
 import { CaseStudy, BlogPost, ServiceItem } from './types';
+import { Loader } from 'lucide-react';
 
 type ViewState = 
   | { type: 'home' }
@@ -43,18 +44,35 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewState>({ type: 'home' });
   const [selectedContactService, setSelectedContactService] = useState<string>('Комплексное продвижение');
   
-  // Dynamic data loading needed for SEO and content
+  // Dynamic data
   const [dynamicCases, setDynamicCases] = useState<CaseStudy[]>([]);
   const [dynamicPosts, setDynamicPosts] = useState<BlogPost[]>([]);
   const [servicesData, setServicesData] = useState<ServiceItem[]>(STATIC_SERVICES);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initial Data Load
+    // Initial Data Load in Parallel
     const loadData = async () => {
-       await dataManager.init();
-       setDynamicCases(await dataManager.getCases());
-       setDynamicPosts(await dataManager.getBlogPosts());
-       setServicesData(await dataManager.getServices());
+       setIsLoading(true);
+       try {
+           // Warm up the server
+           dataManager.init(); 
+           
+           // Fetch all heavy data in parallel
+           const [cases, posts, services] = await Promise.all([
+               dataManager.getCases(),
+               dataManager.getBlogPosts(),
+               dataManager.getServices()
+           ]);
+           
+           setDynamicCases(cases);
+           setDynamicPosts(posts);
+           setServicesData(services);
+       } catch (e) {
+           console.error("Failed to load initial data", e);
+       } finally {
+           setIsLoading(false);
+       }
     };
     loadData();
   }, []);
@@ -137,10 +155,28 @@ const App: React.FC = () => {
   if (view.type === 'admin') {
     return <AdminPanel onBack={() => {
         // Reload data when returning from admin
-        dataManager.getServices().then(setServicesData);
-        dataManager.getCases().then(setDynamicCases);
-        navigateTo('home');
+        Promise.all([
+            dataManager.getServices(),
+            dataManager.getCases(),
+            dataManager.getBlogPosts()
+        ]).then(([s, c, p]) => {
+            setServicesData(s);
+            setDynamicCases(c);
+            setDynamicPosts(p);
+            navigateTo('home');
+        });
     }} />;
+  }
+  
+  if (isLoading) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-slate-50">
+              <div className="text-center">
+                  <Loader className="w-10 h-10 text-brand-orange animate-spin mx-auto mb-4" />
+                  <p className="text-slate-500">Загрузка данных...</p>
+              </div>
+          </div>
+      );
   }
 
   return (
@@ -172,9 +208,14 @@ const App: React.FC = () => {
                 isHomePreview={true}
                 onViewAll={() => navigateTo('cases')}
                 onSelectCase={navigateToCase}
+                initialCases={dynamicCases}
               />
             </div>
-            <BlogPreview onSelectPost={navigateToBlogPost} onViewAll={() => navigateTo('blog')} />
+            <BlogPreview 
+                onSelectPost={navigateToBlogPost} 
+                onViewAll={() => navigateTo('blog')} 
+                initialPosts={dynamicPosts}
+            />
             <FAQ />
             <Testimonials />
             <ContactForm services={servicesData} selectedService={selectedContactService} onNavigate={navigateTo} />
@@ -197,6 +238,7 @@ const App: React.FC = () => {
           <CasesPage 
             onOrder={() => navigateTo('contact')} 
             onSelectCase={navigateToCase}
+            initialCases={dynamicCases}
           />
         )}
 
@@ -205,7 +247,7 @@ const App: React.FC = () => {
         )}
 
         {view.type === 'blog' && (
-          <BlogPage onSelectPost={navigateToBlogPost} />
+          <BlogPage onSelectPost={navigateToBlogPost} initialPosts={dynamicPosts} />
         )}
 
         {view.type === 'blog-post' && (
