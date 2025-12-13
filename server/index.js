@@ -14,9 +14,18 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001; 
 
+// Включаем доверие к Nginx прокси (важно для правильного IP адреса клиентов)
+app.enable('trust proxy');
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
+
+// Логирование всех запросов (чтобы видеть в pm2 logs, доходят ли запросы от Nginx)
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+    next();
+});
 
 // Логирование для отладки путей на сервере
 const distPath = path.join(__dirname, '../dist');
@@ -32,21 +41,25 @@ if (fs.existsSync(distPath)) {
 }
 
 // Database Connection
-// Используем try/catch при создании пула
 let pool;
+
+// !!! ВНИМАНИЕ: Проверьте эти данные в ISPmanager -> Базы данных !!!
+const dbConfig = {
+    host: 'localhost',       
+    port: 3306,             
+    user: 'p592462_valstand',  // <-- Проверьте имя пользователя (обычно с префиксом)
+    password: 'lA5gJ2dX1j',    // <-- Проверьте пароль
+    database: 'p592462_valstand', // <-- Проверьте имя базы данных
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 0
+};
+
 try {
-    pool = mysql.createPool({
-        host: '172.17.0.2', 
-        port: 3306,
-        user: 'root', 
-        password: '',    
-        database: 'root_1', 
-        waitForConnections: true,
-        connectionLimit: 10,
-        queueLimit: 0,
-        enableKeepAlive: true,
-        keepAliveInitialDelay: 0
-    });
+    console.log(`Attempting to connect to DB as user: ${dbConfig.user} on database: ${dbConfig.database}`);
+    pool = mysql.createPool(dbConfig);
     console.log('Database pool created (lazy connection)');
 } catch (err) {
     console.error("Database Config Error:", err);
@@ -68,7 +81,13 @@ app.get('/api/status', async (req, res) => {
         res.json({ status: 'ok', message: 'Database connected successfully' });
     } catch (e) {
         console.error("DB Connection Test Failed:", e);
-        res.status(500).json({ status: 'error', message: e.message });
+        // Возвращаем подробную ошибку, чтобы вы видели её в браузере
+        res.status(500).json({ 
+            status: 'error', 
+            message: e.message, 
+            code: e.code,
+            hint: "Check ISPmanager -> Databases for correct User and Password"
+        });
     }
 });
 
@@ -133,7 +152,7 @@ app.get('/setup', async (req, res) => {
         res.send(`<h1>База данных успешно настроена!</h1><a href="/">Вернуться на сайт</a>`);
     } catch (error) {
         console.error("Setup Error:", error);
-        res.status(500).send(`<h1>Ошибка настройки БД</h1><pre>${error.message}</pre>`);
+        res.status(500).send(`<h1>Ошибка настройки БД</h1><p>Проверьте данные подключения в server/index.js</p><pre>${error.message}</pre>`);
     }
 });
 
