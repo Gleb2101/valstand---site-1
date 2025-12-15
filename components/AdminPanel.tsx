@@ -48,7 +48,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
 
   // Category editing
   const [newCategory, setNewCategory] = useState('');
-  const [showCategoryEditor, setShowCategoryEditor] = useState(false);
 
   // SEO State
   const [seoSearch, setSeoSearch] = useState('');
@@ -102,27 +101,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       
       setSyncing(true);
       try {
-          // Sync Services
-          for(const s of SERVICES) {
-              await dataManager.saveService(s);
-          }
-          // Sync Cases
-          for(const c of CASES) {
-              await dataManager.saveCase(c);
-          }
-          // Sync Team
-          for(const t of TEAM_MEMBERS) {
-              await dataManager.saveTeamMember(t);
-          }
-          // Sync Reviews
-          for(const r of TESTIMONIALS) {
-              await dataManager.saveTestimonial(r);
-          }
-          // Sync Blog
-          for(const b of BLOG_POSTS) {
-              await dataManager.saveBlogPost(b);
-          }
-          // Sync Categories
+          for(const s of SERVICES) await dataManager.saveService(s);
+          for(const c of CASES) await dataManager.saveCase(c);
+          for(const t of TEAM_MEMBERS) await dataManager.saveTeamMember(t);
+          for(const r of TESTIMONIALS) await dataManager.saveTestimonial(r);
+          for(const b of BLOG_POSTS) await dataManager.saveBlogPost(b);
           for(const cat of BLOG_CATEGORIES) {
               if (cat !== 'Все') await dataManager.addCategory(cat);
           }
@@ -169,8 +152,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         setLeads(await dataManager.getLeads());
     }
   };
-
-  // --- SERVICES LOGIC ---
 
   const handleSaveService = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -219,11 +200,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           return;
       }
       
-      // Re-index
       const reindexed = newServices.map((s, i) => ({ ...s, orderIndex: i }));
       setServicesData(reindexed);
 
-      // Save order to DB immediately to persist changes
       try {
         await Promise.all(reindexed.map(s => dataManager.saveService(s)));
       } catch (err) {
@@ -281,9 +260,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     e.preventDefault();
     e.stopPropagation();
     if(confirm('Удалить сотрудника?')) {
-         // Note: Team API endpoint wasn't explicitly added for delete in dataManager in previous steps, but generic one might work if implemented.
-         // Assuming generic delete works or adding alert for now.
-         alert('Для удаления сотрудника требуется реализация API DELETE /api/team/:id');
+         await dataManager.deleteTeamMember(id);
+         setTeam(await dataManager.getTeam());
     }
   };
 
@@ -419,32 +397,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       }
   };
 
-  // Case Results Helpers
-  const addCaseResult = () => {
-    if (editingCase) {
-      setEditingCase({
-        ...editingCase,
-        results: [...editingCase.results, { label: '', value: '' }]
-      });
-    }
-  };
-
-  const removeCaseResult = (index: number) => {
-    if (editingCase) {
-      const newResults = [...editingCase.results];
-      newResults.splice(index, 1);
-      setEditingCase({ ...editingCase, results: newResults });
-    }
-  };
-
-  const updateCaseResult = (index: number, field: 'label' | 'value', val: string) => {
-    if (editingCase) {
-      const newResults = [...editingCase.results];
-      newResults[index][field] = val;
-      setEditingCase({ ...editingCase, results: newResults });
-    }
-  };
-
   // SEO Helpers
   const handleSeoChange = (pageKey: string, field: 'title' | 'description' | 'keywords' | 'ogImage', value: string) => {
     setSettings(prev => ({
@@ -459,7 +411,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     }));
   };
 
-  // RTE Image Selection
   const handleRteImageSelect = (url: string) => {
     setShowRteImagePicker(false);
     const btn = document.getElementById('rte-insert-image-trigger');
@@ -469,7 +420,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     }
   };
 
-  // Generate complete list of pages for SEO
   const getAllSeoPages = (): SeoPageItem[] => {
     const pages: SeoPageItem[] = [
       { key: 'home', label: 'Главная', group: 'Основные' },
@@ -627,6 +577,98 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             {activeTab === 'media' && (
                 <div className="h-[600px]">
                     <MediaLibrary />
+                </div>
+            )}
+
+            {/* --- TEAM --- */}
+            {activeTab === 'team' && (
+                <div>
+                    {!editingMember ? (
+                        <>
+                            <button onClick={() => setEditingMember({id: Date.now().toString(), name: '', role: '', description: '', image: ''})} className="flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-dark font-bold rounded-lg hover:bg-brand-orange mb-6"><Plus size={18} /> Добавить сотрудника</button>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {team.map(m => (
+                                    <div key={m.id} className="flex gap-4 p-4 bg-slate-50 rounded-xl border items-start">
+                                        <img src={m.image} className="w-16 h-16 rounded-full object-cover" />
+                                        <div className="flex-grow">
+                                            <h4 className="font-bold">{m.name}</h4>
+                                            <p className="text-sm text-brand-orange">{m.role}</p>
+                                            <p className="text-xs text-slate-500 line-clamp-2">{m.description}</p>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <button onClick={() => setEditingMember(m)} className="p-2 bg-blue-100 text-blue-600 rounded"><Settings size={16}/></button>
+                                            <button onClick={(e) => handleDeleteTeam(e, m.id)} className="p-2 bg-red-100 text-red-600 rounded"><Trash2 size={16}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <form onSubmit={handleSaveTeam} className="space-y-4 max-w-2xl">
+                            <div className="flex justify-between items-center"><h3 className="font-bold text-xl">Сотрудник</h3><button type="button" onClick={() => setEditingMember(null)}><X/></button></div>
+                            <input className="w-full p-2 border rounded" placeholder="Имя" value={editingMember.name} onChange={e => setEditingMember({...editingMember, name: e.target.value})} required />
+                            <input className="w-full p-2 border rounded" placeholder="Должность" value={editingMember.role} onChange={e => setEditingMember({...editingMember, role: e.target.value})} required />
+                            <textarea className="w-full p-2 border rounded h-32" placeholder="Описание" value={editingMember.description} onChange={e => setEditingMember({...editingMember, description: e.target.value})} required />
+                            <ImagePicker label="Фото" value={editingMember.image} onChange={url => setEditingMember({...editingMember, image: url})} />
+                            <div className="flex gap-4"><button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* --- POPUPS --- */}
+            {activeTab === 'popups' && (
+                <div>
+                    {!editingPopup ? (
+                        <>
+                            <button onClick={() => setEditingPopup({id: Date.now().toString(), title: '', text: '', isActive: true, delaySeconds: 5, hasForm: true})} className="flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-dark font-bold rounded-lg hover:bg-brand-orange mb-6"><Plus size={18} /> Добавить попап</button>
+                            <div className="grid gap-4">
+                                {popups.map(p => (
+                                    <div key={p.id} className="flex justify-between p-4 bg-slate-50 rounded-xl border items-center">
+                                        <div>
+                                            <h4 className="font-bold flex items-center gap-2">
+                                                {p.title} 
+                                                <span className={`text-xs px-2 py-0.5 rounded ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{p.isActive ? 'Active' : 'Inactive'}</span>
+                                            </h4>
+                                            <p className="text-sm text-slate-500">Задержка: {p.delaySeconds}с | Форма: {p.hasForm ? 'Да' : 'Нет'}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingPopup(p)} className="p-2 bg-blue-100 text-blue-600 rounded"><Settings size={16}/></button>
+                                            <button onClick={(e) => handleDeletePopup(e, p.id)} className="p-2 bg-red-100 text-red-600 rounded"><Trash2 size={16}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <form onSubmit={handleSavePopup} className="space-y-4 max-w-2xl">
+                            <div className="flex justify-between items-center"><h3 className="font-bold text-xl">Попап</h3><button type="button" onClick={() => setEditingPopup(null)}><X/></button></div>
+                            <div className="flex items-center gap-4 mb-4">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={editingPopup.isActive} onChange={e => setEditingPopup({...editingPopup, isActive: e.target.checked})} className="w-5 h-5" />
+                                    <span className="font-bold">Активен</span>
+                                </label>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={editingPopup.hasForm} onChange={e => setEditingPopup({...editingPopup, hasForm: e.target.checked})} className="w-5 h-5" />
+                                    <span>Включить форму заявки</span>
+                                </label>
+                            </div>
+                            <input className="w-full p-2 border rounded" placeholder="Заголовок" value={editingPopup.title} onChange={e => setEditingPopup({...editingPopup, title: e.target.value})} required />
+                            <textarea className="w-full p-2 border rounded h-32" placeholder="Текст" value={editingPopup.text} onChange={e => setEditingPopup({...editingPopup, text: e.target.value})} required />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Задержка (сек)</label>
+                                    <input type="number" className="w-full p-2 border rounded" value={editingPopup.delaySeconds} onChange={e => setEditingPopup({...editingPopup, delaySeconds: parseInt(e.target.value)})} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Ширина картинки (%)</label>
+                                    <input type="number" className="w-full p-2 border rounded" value={editingPopup.imageWidth || 100} onChange={e => setEditingPopup({...editingPopup, imageWidth: parseInt(e.target.value)})} />
+                                </div>
+                            </div>
+                            <ImagePicker label="Картинка (необязательно)" value={editingPopup.imageUrl || ''} onChange={url => setEditingPopup({...editingPopup, imageUrl: url})} />
+                            <div className="flex gap-4"><button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold">Сохранить</button></div>
+                        </form>
+                    )}
                 </div>
             )}
             
@@ -839,7 +881,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* Same components for Cases, Reviews, Team, Popups, Blog, SEO, Settings as before */}
             {activeTab === 'cases' && (
                 <div>
                     {!editingCase ? (
@@ -908,6 +949,121 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                         </form>
                     )}
                 </div>
+            )}
+            
+            {/* --- SEO TAB --- */}
+            {activeTab === 'seo' && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="md:col-span-1 bg-slate-50 p-4 rounded-xl border h-fit">
+                        <h3 className="font-bold mb-4">Страницы</h3>
+                        <input 
+                            placeholder="Поиск..." 
+                            className="w-full p-2 mb-4 border rounded text-sm"
+                            value={seoSearch}
+                            onChange={e => setSeoSearch(e.target.value)}
+                        />
+                        <div className="space-y-1 max-h-[600px] overflow-y-auto">
+                            {filteredSeoPages.map(p => (
+                                <button
+                                    key={p.key}
+                                    onClick={() => setSelectedSeoPage(p.key)}
+                                    className={`w-full text-left px-3 py-2 rounded text-sm truncate ${selectedSeoPage === p.key ? 'bg-brand-orange text-white' : 'hover:bg-slate-200'}`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="md:col-span-3">
+                        <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                            <h3 className="font-bold text-xl mb-4">SEO: {filteredSeoPages.find(p => p.key === selectedSeoPage)?.label || selectedSeoPage}</h3>
+                            
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Meta Title</label>
+                                <input 
+                                    className="w-full p-2 border rounded" 
+                                    value={settings.seo[selectedSeoPage]?.title || ''}
+                                    onChange={e => handleSeoChange(selectedSeoPage, 'title', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Meta Description</label>
+                                <textarea 
+                                    className="w-full p-2 border rounded h-24" 
+                                    value={settings.seo[selectedSeoPage]?.description || ''}
+                                    onChange={e => handleSeoChange(selectedSeoPage, 'description', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Keywords</label>
+                                <input 
+                                    className="w-full p-2 border rounded" 
+                                    value={settings.seo[selectedSeoPage]?.keywords || ''}
+                                    onChange={e => handleSeoChange(selectedSeoPage, 'keywords', e.target.value)}
+                                />
+                            </div>
+                            
+                            <ImagePicker 
+                                label="OG Image (для соцсетей)" 
+                                value={settings.seo[selectedSeoPage]?.ogImage || ''}
+                                onChange={url => handleSeoChange(selectedSeoPage, 'ogImage', url)}
+                            />
+
+                            <div className="pt-4 flex justify-end">
+                                <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold flex items-center gap-2"><Save size={18}/> Сохранить SEO</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- SETTINGS TAB --- */}
+            {activeTab === 'settings' && (
+                <form onSubmit={handleSaveSettings} className="max-w-4xl space-y-8 pb-20">
+                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                        <h3 className="font-bold text-xl border-b pb-2">Основные</h3>
+                        <ImagePicker label="Favicon URL (SVG/ICO)" value={settings.favicon || ''} onChange={url => setSettings({...settings, favicon: url})} />
+                        <ImagePicker label="Логотип (URL)" value={settings.logo || ''} onChange={url => setSettings({...settings, logo: url})} />
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                        <h3 className="font-bold text-xl border-b pb-2">Соцсети</h3>
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Telegram</label>
+                                <input className="w-full p-2 border rounded" value={settings.socials?.telegram || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, telegram: e.target.value}})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">VK</label>
+                                <input className="w-full p-2 border rounded" value={settings.socials?.vk || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vk: e.target.value}})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">VC.ru</label>
+                                <input className="w-full p-2 border rounded" value={settings.socials?.vc || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vc: e.target.value}})} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">TJ</label>
+                                <input className="w-full p-2 border rounded" value={settings.socials?.tj || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, tj: e.target.value}})} />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                        <h3 className="font-bold text-xl border-b pb-2">Вставка кода (Метрика/Пиксели)</h3>
+                        <div>
+                            <label className="block text-sm font-bold mb-1">Внутри &lt;HEAD&gt;</label>
+                            <textarea className="w-full p-2 border rounded h-32 font-mono text-sm bg-slate-50" value={settings.headerCode || ''} onChange={e => setSettings({...settings, headerCode: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold mb-1">В конце &lt;BODY&gt;</label>
+                            <textarea className="w-full p-2 border rounded h-32 font-mono text-sm bg-slate-50" value={settings.footerCode || ''} onChange={e => setSettings({...settings, footerCode: e.target.value})} />
+                        </div>
+                    </div>
+
+                    <div className="fixed bottom-6 right-6">
+                        <button type="submit" className="bg-green-600 text-white px-8 py-4 rounded-full font-bold shadow-xl hover:bg-green-500 flex items-center gap-2 transform hover:scale-105 transition-all"><Save size={20}/> Сохранить настройки</button>
+                    </div>
+                </form>
             )}
             
             </div>

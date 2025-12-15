@@ -150,6 +150,10 @@ export const dataManager = {
       await postData('team', item);
       invalidateCache('team');
   },
+  deleteTeamMember: async (id: string) => {
+      await deleteData('team', id);
+      invalidateCache('team');
+  },
 
   // Blog
   getBlogPosts: (): Promise<BlogPost[]> => getCached('blog_posts', 'blog_posts', BLOG_POSTS),
