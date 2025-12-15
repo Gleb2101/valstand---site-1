@@ -32,9 +32,9 @@ let pool = null;
 
 const connectDB = async () => {
     const dbConfig = {
-        host: '172.17.0.2',      
-        user: 'root',         
-        password: '', 
+        host: '127.0.0.1',      
+        user: 'root_1',         
+        password: 'BZjAFGph7c', 
         database: 'root_1',     
         port: 3306,
         waitForConnections: true,
@@ -94,6 +94,27 @@ const dbCheck = (req, res, next) => {
 app.get('/api/status', async (req, res) => {
     if(pool) res.json({ status: 'ok', db: 'connected' });
     else res.json({ status: 'ok', db: 'disconnected' });
+});
+
+// Custom Route for Favicon from absolute path
+app.get('/favicon_val.svg', (req, res) => {
+    // Exact path requested by user
+    const iconPath = '/var/www/www-root/data/www/valstand.ru/favicon_val.svg';
+    
+    try {
+        if (fs.existsSync(iconPath)) {
+            res.sendFile(iconPath);
+        } else {
+            console.warn(`Favicon not found at ${iconPath}, checking local...`);
+            // Fallback to local project file if absolute path doesn't exist (dev environment)
+            const localPath = path.join(__dirname, '../public/favicon_val.svg'); // Assuming it might be in public
+            // Or serve a default 404
+            res.status(404).send('Favicon not found');
+        }
+    } catch (e) {
+        console.error("Error serving favicon:", e);
+        res.status(500).send("Error");
+    }
 });
 
 // Generic CRUD

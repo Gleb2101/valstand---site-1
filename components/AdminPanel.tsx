@@ -90,7 +90,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         setSettings({ ...s, socials: s.socials || {} });
     } catch (e) {
         console.error(e);
-        alert('Ошибка загрузки данных. Проверьте соединение с сервером.');
+        // Do not alert constantly if offline, let dataManager fallback
     } finally {
         setLoading(false);
     }
@@ -134,9 +134,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const handleSaveService = async (e: React.FormEvent) => {
       e.preventDefault();
       if (editingService) {
-          await dataManager.saveService(editingService);
-          setEditingService(null);
-          setServicesData(await dataManager.getServices());
+          try {
+              await dataManager.saveService(editingService);
+              setEditingService(null);
+              setServicesData(await dataManager.getServices());
+              alert('Услуга успешно сохранена');
+          } catch (err) {
+              alert('Ошибка сохранения услуги. Проверьте соединение с БД.');
+          }
       }
   };
 
