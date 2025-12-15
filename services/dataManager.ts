@@ -236,5 +236,20 @@ export const dataManager = {
   saveSettings: async (settings: SiteSettings) => {
       await postData('settings', settings);
       invalidateCache('settings');
+  },
+
+  // SEO Files (Robots.txt & Sitemap)
+  getSeoFiles: async (): Promise<{ robots_txt: string; sitemap_xml: string }> => {
+      try {
+          const res = await fetch(`${API_URL}/seo-files`);
+          if (!res.ok) throw new Error('Failed to fetch seo files');
+          return await res.json();
+      } catch (e) {
+          console.warn("Failed to get SEO files, using empty defaults", e);
+          return { robots_txt: '', sitemap_xml: '' };
+      }
+  },
+  saveSeoFiles: async (files: { robots_txt?: string; sitemap_xml?: string }) => {
+      await postData('seo-files', files);
   }
 };

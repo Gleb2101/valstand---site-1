@@ -51,18 +51,11 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
         {/* Logo */}
         <a href="#" onClick={(e) => handleLinkClick(e, 'home')} className="flex items-center gap-2 group">
            {logoUrl ? (
-             <img 
-                src={logoUrl} 
-                alt="Valstand Logo" 
-                className="h-10 w-auto object-contain rounded-lg shadow-lg transform group-hover:rotate-6 transition-transform" 
-             />
+             <img src={logoUrl} alt="Valstand Logo" className="h-10 w-auto object-contain" />
            ) : (
-             <img 
-                src="/logo.png" 
-                onError={(e) => e.currentTarget.src = '/favicon_val.svg'}
-                alt="Valstand Logo" 
-                className="h-10 w-auto object-contain rounded-lg shadow-lg transform group-hover:rotate-6 transition-transform" 
-             />
+             <div className="w-10 h-10 bg-gradient-to-br from-brand-yellow to-brand-orange rounded-lg flex items-center justify-center transform group-hover:rotate-6 transition-transform shadow-lg">
+                <span className="text-white font-bold text-xl">V</span>
+             </div>
            )}
            <span className={`font-bold text-2xl tracking-tight transition-colors ${isScrolled ? 'text-slate-900' : 'text-slate-900'}`}>
              Valstand

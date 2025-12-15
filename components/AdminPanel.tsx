@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem } from '../types';
 import { PACKAGES, SERVICES, CASES, TEAM_MEMBERS, TESTIMONIALS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
@@ -38,6 +38,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [categories, setCategories] = useState<string[]>([]);
   const [settings, setSettings] = useState<SiteSettings>({ headerCode: '', footerCode: '', seo: {}, socials: {} });
 
+  // SEO Files State
+  const [seoFiles, setSeoFiles] = useState<{ robots_txt: string; sitemap_xml: string }>({ robots_txt: '', sitemap_xml: '' });
+
   // Editing State
   const [editingCase, setEditingCase] = useState<CaseStudy | null>(null);
   const [editingReview, setEditingReview] = useState<Testimonial | null>(null);
@@ -67,7 +70,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-        const [l, c, r, t, p, b, cat, s, srv] = await Promise.all([
+        const [l, c, r, t, p, b, cat, s, srv, sf] = await Promise.all([
             dataManager.getLeads(),
             dataManager.getCases(),
             dataManager.getTestimonials(),
@@ -76,7 +79,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             dataManager.getBlogPosts(),
             dataManager.getCategories(),
             dataManager.getSettings(),
-            dataManager.getServices()
+            dataManager.getServices(),
+            dataManager.getSeoFiles()
         ]);
         setLeads(l);
         setCases(c);
@@ -86,6 +90,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         setBlogPosts(b);
         setCategories(cat);
         setServicesData(srv);
+        setSeoFiles(sf);
         // Ensure socials object exists
         setSettings({ ...s, socials: s.socials || {} });
     } catch (e) {
@@ -322,6 +327,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     e.preventDefault();
     await dataManager.saveSettings(settings);
     alert('Настройки сохранены.');
+  };
+
+  const handleSaveSeoFiles = async (e: React.FormEvent) => {
+      e.preventDefault();
+      try {
+          await dataManager.saveSeoFiles(seoFiles);
+          alert('Файлы robots.txt и sitemap.xml сохранены!');
+      } catch (err) {
+          alert('Ошибка при сохранении файлов.');
+      }
   };
 
   // Service Helpers
@@ -974,7 +989,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             ))}
                         </div>
                     </div>
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-3 space-y-8">
+                        {/* Meta Tags Form */}
                         <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
                             <h3 className="font-bold text-xl mb-4">SEO: {filteredSeoPages.find(p => p.key === selectedSeoPage)?.label || selectedSeoPage}</h3>
                             
@@ -1010,7 +1026,36 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             />
 
                             <div className="pt-4 flex justify-end">
-                                <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold flex items-center gap-2"><Save size={18}/> Сохранить SEO</button>
+                                <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold flex items-center gap-2"><Save size={18}/> Сохранить мета-теги</button>
+                            </div>
+                        </form>
+
+                        {/* Files Editor */}
+                        <form onSubmit={handleSaveSeoFiles} className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
+                            <h3 className="font-bold text-xl flex items-center gap-2 border-b pb-2"><FileCode size={20}/> Технические файлы</h3>
+                            
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">robots.txt</label>
+                                <textarea 
+                                    className="w-full p-4 border rounded-lg h-48 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-brand-orange focus:outline-none" 
+                                    value={seoFiles.robots_txt}
+                                    onChange={e => setSeoFiles({...seoFiles, robots_txt: e.target.value})}
+                                    placeholder="User-agent: *&#10;Allow: /"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">sitemap.xml</label>
+                                <textarea 
+                                    className="w-full p-4 border rounded-lg h-64 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-brand-orange focus:outline-none" 
+                                    value={seoFiles.sitemap_xml}
+                                    onChange={e => setSeoFiles({...seoFiles, sitemap_xml: e.target.value})}
+                                    placeholder={`<?xml version="1.0" encoding="UTF-8"?>...`}
+                                />
+                            </div>
+
+                            <div className="pt-2 flex justify-end">
+                                <button type="submit" className="bg-slate-900 text-white px-6 py-2 rounded font-bold flex items-center gap-2 hover:bg-slate-700"><Save size={18}/> Сохранить файлы</button>
                             </div>
                         </form>
                     </div>

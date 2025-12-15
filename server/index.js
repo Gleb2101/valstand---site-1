@@ -117,6 +117,70 @@ app.get('/favicon_val.svg', (req, res) => {
     }
 });
 
+// --- SEO FILES SERVING ---
+
+app.get('/robots.txt', async (req, res) => {
+    const defaultRobots = "User-agent: *\nAllow: /";
+    try {
+        if (!pool) return res.type('text/plain').send(defaultRobots);
+        const [rows] = await pool.query('SELECT data FROM settings WHERE setting_key = "robots_txt"');
+        const content = rows.length > 0 ? rows[0].data : defaultRobots;
+        res.type('text/plain').send(content);
+    } catch (e) {
+        console.error("Error serving robots.txt", e);
+        res.type('text/plain').send(defaultRobots);
+    }
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+    const defaultSitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>';
+    try {
+        if (!pool) return res.type('application/xml').send(defaultSitemap);
+        const [rows] = await pool.query('SELECT data FROM settings WHERE setting_key = "sitemap_xml"');
+        const content = rows.length > 0 ? rows[0].data : defaultSitemap;
+        res.type('application/xml').send(content);
+    } catch (e) {
+        console.error("Error serving sitemap.xml", e);
+        res.type('application/xml').send(defaultSitemap);
+    }
+});
+
+// --- SEO FILES API ---
+
+app.get('/api/seo-files', dbCheck, async (req, res) => {
+    try {
+        const [rows] = await pool.query('SELECT setting_key, data FROM settings WHERE setting_key IN ("robots_txt", "sitemap_xml")');
+        const result = {
+            robots_txt: '',
+            sitemap_xml: ''
+        };
+        rows.forEach(r => {
+            result[r.setting_key] = r.data;
+        });
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/seo-files', dbCheck, async (req, res) => {
+    try {
+        const { robots_txt, sitemap_xml } = req.body;
+        
+        if (robots_txt !== undefined) {
+            await pool.query('INSERT INTO settings (setting_key, data) VALUES ("robots_txt", ?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [robots_txt]);
+        }
+        if (sitemap_xml !== undefined) {
+            await pool.query('INSERT INTO settings (setting_key, data) VALUES ("sitemap_xml", ?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [sitemap_xml]);
+        }
+        
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
 // Generic CRUD
 const createCrudHandlers = (table) => {
     app.get(`/api/${table}`, dbCheck, async (req, res) => {
