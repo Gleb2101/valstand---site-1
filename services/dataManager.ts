@@ -107,7 +107,12 @@ export const dataManager = {
   },
 
   // Services
-  getServices: (): Promise<ServiceItem[]> => getCached('services', 'services', SERVICES),
+  getServices: (): Promise<ServiceItem[]> => {
+      // Sort services by orderIndex if available
+      return getCached('services', 'services', SERVICES).then(items => {
+          return items.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+      });
+  },
   saveService: async (item: ServiceItem) => {
       await postData('services', item);
       invalidateCache('services');

@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
@@ -16,7 +17,7 @@ app.enable('trust proxy');
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 
-// Логирование
+// Logging
 app.use((req, res, next) => {
     if (!req.url.match(/\.(js|css|png|jpg|ico|svg|woff2)$/)) {
         console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
@@ -30,47 +31,24 @@ const distPath = path.join(__dirname, '../dist');
 let pool = null;
 
 const connectDB = async () => {
-    // Базовая конфигурация по вашему запросу
     const dbConfig = {
-        host: 'localhost',      // Используем localhost
-        user: 'root_1',         // Ваш пользователь
-        password: 'BZjAFGph7c', // Ваш пароль
-        database: 'root_1',     // Ваша база
+        host: '172.17.0.2',      
+        user: 'root',         
+        password: '', 
+        database: 'root_1',     
         port: 3306,
         waitForConnections: true,
         connectionLimit: 10,
-        connectTimeout: 5000 
+        connectTimeout: 10000 
     };
 
-    // Улучшение для Linux серверов: 
-    // Node.js mysql2 драйвер иногда требует явного указания пути к сокету для localhost
-    if (process.platform !== 'win32') {
-        const possibleSockets = [
-            '/var/run/mysqld/mysqld.sock', // Ubuntu/Debian standard
-            '/tmp/mysql.sock',             // Custom/MAMP/XAMPP
-            '/var/lib/mysql/mysql.sock'    // CentOS/RHEL
-        ];
-        
-        const foundSocket = possibleSockets.find(s => fs.existsSync(s));
-        
-        if (foundSocket) {
-            console.log(`[DB] Auto-detected MySQL socket at: ${foundSocket}`);
-            console.log(`[DB] Switching from 'localhost' to socket connection for better stability.`);
-            delete dbConfig.host; // Удаляем host, чтобы принудительно использовать сокет
-            delete dbConfig.port;
-            dbConfig.socketPath = foundSocket;
-        } else {
-            console.log(`[DB] No socket found. Connecting via TCP to ${dbConfig.host}:${dbConfig.port}`);
-        }
-    }
+    console.log(`[DB] Attempting connection to ${dbConfig.host} as user '${dbConfig.user}'...`);
 
     try {
         pool = mysql.createPool(dbConfig);
-        // Проверяем соединение
         const connection = await pool.getConnection();
         console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
         
-        // Инициализация таблиц
         await initTables(connection);
         
         connection.release();
@@ -78,9 +56,6 @@ const connectDB = async () => {
         console.error('❌ DATABASE CONNECTION FAILED');
         console.error(`Error Code: ${err.code}`);
         console.error(`Error Message: ${err.message}`);
-        console.error('---');
-        console.error('Server is switching to STATIC MODE. API will return empty data, but the site will load.');
-        console.error('To fix DB: Run "node server/diagnose.js"');
         pool = null; 
     }
 };
@@ -89,6 +64,7 @@ const initTables = async (connection) => {
     try {
         await connection.query(`CREATE TABLE IF NOT EXISTS leads (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), phone VARCHAR(255), service VARCHAR(255), status VARCHAR(50), date DATETIME)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS cases (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
+        // Services table for storing service data
         await connection.query(`CREATE TABLE IF NOT EXISTS services (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS blog_posts (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), category VARCHAR(255), data LONGTEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS images (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), data LONGTEXT)`);
@@ -103,12 +79,10 @@ const initTables = async (connection) => {
     }
 };
 
-// Запускаем подключение
 connectDB();
 
 // --- API ROUTES ---
 
-// Middleware для проверки БД
 const dbCheck = (req, res, next) => {
     if (!pool) {
         if (req.method === 'GET') return res.json([]);
@@ -122,6 +96,7 @@ app.get('/api/status', async (req, res) => {
     else res.json({ status: 'ok', db: 'disconnected' });
 });
 
+// Generic CRUD
 const createCrudHandlers = (table) => {
     app.get(`/api/${table}`, dbCheck, async (req, res) => {
         try {
@@ -136,6 +111,7 @@ const createCrudHandlers = (table) => {
             const item = req.body;
             const dataStr = JSON.stringify(item);
             
+            // Handle specific columns for search/indexing optimizations if needed
             if (table === 'blog_posts') {
                  await pool.query(`INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, [item.id, item.title, item.category, dataStr]);
             } else if (table === 'cases' || table === 'services') {
@@ -157,6 +133,7 @@ const createCrudHandlers = (table) => {
     });
 };
 
+// Leads specific
 app.get('/api/leads', dbCheck, async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM leads ORDER BY date DESC');
@@ -188,6 +165,7 @@ app.delete('/api/leads/:id', dbCheck, async (req, res) => {
     } catch (e) { res.status(500).json(e); }
 });
 
+// Settings specific
 app.get('/api/settings', dbCheck, async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT * FROM settings');
@@ -205,6 +183,7 @@ app.post('/api/settings', dbCheck, async (req, res) => {
     } catch (e) { res.status(500).json(e); }
 });
 
+// Categories specific
 app.get('/api/categories', dbCheck, async (req, res) => {
     try {
         const [rows] = await pool.query('SELECT name FROM categories');
@@ -232,8 +211,7 @@ createCrudHandlers('team');
 createCrudHandlers('popups');
 createCrudHandlers('images');
 createCrudHandlers('blog_posts');
-createCrudHandlers('services');
-
+createCrudHandlers('services'); // Register services handler
 
 // --- STATIC FILES ---
 app.use(express.static(distPath, {

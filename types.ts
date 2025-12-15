@@ -13,6 +13,7 @@ export interface ServiceItem {
     details?: string;
     exampleImage?: string;
   }[];
+  orderIndex?: number; // Added for ordering
 }
 
 export interface ServicePackage {
