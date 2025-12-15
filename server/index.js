@@ -122,7 +122,26 @@ const createCrudHandlers = (table) => {
     app.get(`/api/${table}`, dbCheck, async (req, res) => {
         try {
             const [rows] = await pool.query(`SELECT * FROM ${table}`);
-            const items = rows.map(r => { try { return JSON.parse(r.data); } catch (e) { return { id: r.id }; } });
+            
+            // SPECIAL HANDLING FOR IMAGES
+            // Images store raw base64 data in the 'data' column, not a JSON object string.
+            if (table === 'images') {
+                const items = rows.map(r => ({
+                    id: r.id,
+                    name: r.name,
+                    data: r.data // This is the base64 string
+                }));
+                return res.json(items);
+            }
+
+            // Standard handling for other tables (JSON parsing)
+            const items = rows.map(r => { 
+                try { 
+                    return JSON.parse(r.data); 
+                } catch (e) { 
+                    return { id: r.id }; 
+                } 
+            });
             res.json(items);
         } catch (error) { res.status(500).json({ error: error.message }); }
     });
@@ -138,6 +157,7 @@ const createCrudHandlers = (table) => {
             } else if (table === 'cases' || table === 'services') {
                  await pool.query(`INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, [item.id, item.title, dataStr]);
             } else if (table === 'images') {
+                 // For images, we store the base64 data directly in the data column
                  await pool.query(`INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, [item.id, item.name, item.data]);
             } else {
                  await pool.query(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)`, [item.id, dataStr]);

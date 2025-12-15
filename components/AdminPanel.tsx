@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem } from '../types';
-import { PACKAGES } from '../constants';
+import { PACKAGES, SERVICES, CASES, TEAM_MEMBERS, TESTIMONIALS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
 import RichTextEditor from './RichTextEditor';
 import ImagePicker from './ImagePicker';
 import MediaLibrary from './MediaLibrary';
@@ -25,6 +25,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [password, setPassword] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   
   // Data State
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -94,6 +95,46 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     } finally {
         setLoading(false);
     }
+  };
+
+  const handleSyncData = async () => {
+      if(!confirm('Это действие загрузит стандартные данные (Кейсы, Услуги, Блог) в базу данных. Если в базе уже есть записи с такими же ID, они будут обновлены. Продолжить?')) return;
+      
+      setSyncing(true);
+      try {
+          // Sync Services
+          for(const s of SERVICES) {
+              await dataManager.saveService(s);
+          }
+          // Sync Cases
+          for(const c of CASES) {
+              await dataManager.saveCase(c);
+          }
+          // Sync Team
+          for(const t of TEAM_MEMBERS) {
+              await dataManager.saveTeamMember(t);
+          }
+          // Sync Reviews
+          for(const r of TESTIMONIALS) {
+              await dataManager.saveTestimonial(r);
+          }
+          // Sync Blog
+          for(const b of BLOG_POSTS) {
+              await dataManager.saveBlogPost(b);
+          }
+          // Sync Categories
+          for(const cat of BLOG_CATEGORIES) {
+              if (cat !== 'Все') await dataManager.addCategory(cat);
+          }
+
+          alert('Данные успешно синхронизированы с БД!');
+          loadData();
+      } catch (e) {
+          console.error(e);
+          alert('Ошибка при синхронизации. Проверьте консоль.');
+      } finally {
+          setSyncing(false);
+      }
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -239,7 +280,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const handleDeleteTeam = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    alert('Удаление сотрудников пока не реализовано в API');
+    if(confirm('Удалить сотрудника?')) {
+         // Note: Team API endpoint wasn't explicitly added for delete in dataManager in previous steps, but generic one might work if implemented.
+         // Assuming generic delete works or adding alert for now.
+         alert('Для удаления сотрудника требуется реализация API DELETE /api/team/:id');
+    }
   };
 
   const handleSavePopup = async (e: React.FormEvent) => {
@@ -534,25 +579,47 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             
             {/* --- DASHBOARD --- */}
             {activeTab === 'dashboard' && (
-                <div className="grid md:grid-cols-4 gap-6">
-                <div className="p-6 bg-blue-50 rounded-xl border border-blue-200">
-                    <h3 className="text-slate-500 mb-2">Новых заявок</h3>
-                    <p className="text-4xl font-bold text-blue-600">
-                    {leads.filter(l => l.status === 'new').length}
-                    </p>
-                </div>
-                <div className="p-6 bg-orange-50 rounded-xl border border-orange-200">
-                    <h3 className="text-slate-500 mb-2">Статей в блоге</h3>
-                    <p className="text-4xl font-bold text-orange-600">{blogPosts.length}</p>
-                </div>
-                <div className="p-6 bg-purple-50 rounded-xl border border-purple-200">
-                    <h3 className="text-slate-500 mb-2">Всего кейсов</h3>
-                    <p className="text-4xl font-bold text-purple-600">{cases.length}</p>
-                </div>
-                <div className="p-6 bg-green-50 rounded-xl border border-green-200">
-                    <h3 className="text-slate-500 mb-2">Отзывов</h3>
-                    <p className="text-4xl font-bold text-green-600">{reviews.length}</p>
-                </div>
+                <div className="space-y-8">
+                    <div className="grid md:grid-cols-4 gap-6">
+                        <div className="p-6 bg-blue-50 rounded-xl border border-blue-200">
+                            <h3 className="text-slate-500 mb-2">Новых заявок</h3>
+                            <p className="text-4xl font-bold text-blue-600">
+                            {leads.filter(l => l.status === 'new').length}
+                            </p>
+                        </div>
+                        <div className="p-6 bg-orange-50 rounded-xl border border-orange-200">
+                            <h3 className="text-slate-500 mb-2">Статей в блоге</h3>
+                            <p className="text-4xl font-bold text-orange-600">{blogPosts.length}</p>
+                        </div>
+                        <div className="p-6 bg-purple-50 rounded-xl border border-purple-200">
+                            <h3 className="text-slate-500 mb-2">Всего кейсов</h3>
+                            <p className="text-4xl font-bold text-purple-600">{cases.length}</p>
+                        </div>
+                        <div className="p-6 bg-green-50 rounded-xl border border-green-200">
+                            <h3 className="text-slate-500 mb-2">Отзывов</h3>
+                            <p className="text-4xl font-bold text-green-600">{reviews.length}</p>
+                        </div>
+                    </div>
+
+                    <div className="p-6 bg-slate-50 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-4 mb-4">
+                            <Database className="text-slate-700" size={24} />
+                            <h3 className="text-xl font-bold text-slate-900">Инициализация Базы Данных</h3>
+                        </div>
+                        <p className="text-slate-600 mb-4">
+                            Если вы только подключили БД, она может быть пустой. 
+                            Нажмите кнопку ниже, чтобы загрузить в неё стандартные данные (Услуги, Кейсы, Блог и т.д.) из кода сайта.
+                            Это решит проблему "исчезновения" контента при первом сохранении.
+                        </p>
+                        <button 
+                            onClick={handleSyncData}
+                            disabled={syncing}
+                            className={`flex items-center gap-2 px-6 py-3 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition-colors ${syncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {syncing ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />}
+                            {syncing ? 'Синхронизация...' : 'Загрузить демо-данные в БД'}
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -787,6 +854,57 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             <ImagePicker label="Картинка" value={editingCase.image} onChange={url => setEditingCase({...editingCase, image: url})} />
                             <textarea className="w-full p-2 border rounded" placeholder="Описание" value={editingCase.description} onChange={e => setEditingCase({...editingCase, description: e.target.value})} />
                             <div className="flex gap-4"><button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Сохранить</button><button type="button" onClick={() => setEditingCase(null)} className="bg-slate-200 px-4 py-2 rounded">Отмена</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+            
+            {activeTab === 'reviews' && (
+                <div>
+                    {!editingReview ? (
+                        <>
+                        <button onClick={() => setEditingReview({id: Date.now(), name: '', role: '', company: '', text: '', avatar: ''})} className="flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-dark font-bold rounded-lg hover:bg-brand-orange mb-6"><Plus size={18} /> Добавить отзыв</button>
+                        <div className="grid gap-4">{reviews.map(r => <div key={r.id} className="flex justify-between p-4 bg-slate-50 rounded-xl border"><div className="flex gap-4"><img src={r.avatar} className="w-12 h-12 rounded-full object-cover"/><div><h4 className="font-bold">{r.name}</h4><p className="text-xs text-slate-500">{r.company}</p></div></div><div className="flex gap-2"><button onClick={() => setEditingReview(r)} className="p-2 bg-blue-100 text-blue-600 rounded">Ред.</button><button onClick={(e) => handleDeleteReview(e, r.id)} className="p-2 bg-red-100 text-red-600 rounded"><Trash2/></button></div></div>)}</div>
+                        </>
+                    ) : (
+                        <form onSubmit={handleSaveReview} className="space-y-4">
+                            <h3 className="font-bold">Отзыв</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <input className="p-2 border rounded" placeholder="Имя" value={editingReview.name} onChange={e => setEditingReview({...editingReview, name: e.target.value})} />
+                                <input className="p-2 border rounded" placeholder="Должность" value={editingReview.role} onChange={e => setEditingReview({...editingReview, role: e.target.value})} />
+                            </div>
+                            <input className="w-full p-2 border rounded" placeholder="Компания" value={editingReview.company} onChange={e => setEditingReview({...editingReview, company: e.target.value})} />
+                            <textarea className="w-full p-2 border rounded" placeholder="Текст отзыва" value={editingReview.text} onChange={e => setEditingReview({...editingReview, text: e.target.value})} />
+                            <ImagePicker label="Аватар" value={editingReview.avatar} onChange={url => setEditingReview({...editingReview, avatar: url})} />
+                            <div className="flex gap-4"><button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Сохранить</button><button type="button" onClick={() => setEditingReview(null)} className="bg-slate-200 px-4 py-2 rounded">Отмена</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'blog' && (
+                <div>
+                    {!editingPost ? (
+                        <>
+                        <button onClick={() => setEditingPost({id: Date.now().toString(), title: '', excerpt: '', content: '', image: '', category: 'Маркетинг', date: new Date().toISOString(), author: 'Admin'})} className="flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-dark font-bold rounded-lg hover:bg-brand-orange mb-6"><Plus size={18} /> Добавить статью</button>
+                        <div className="grid gap-4">{blogPosts.map(p => <div key={p.id} className="flex justify-between p-4 bg-slate-50 rounded-xl border"><div><h4 className="font-bold">{p.title}</h4><span className="text-xs bg-white px-2 py-1 rounded border">{p.category}</span></div><div className="flex gap-2"><button onClick={() => setEditingPost(p)} className="p-2 bg-blue-100 text-blue-600 rounded">Ред.</button><button onClick={(e) => handleDeletePost(e, p.id)} className="p-2 bg-red-100 text-red-600 rounded"><Trash2/></button></div></div>)}</div>
+                        </>
+                    ) : (
+                        <form onSubmit={handleSavePost} className="space-y-4">
+                            <h3 className="font-bold">Статья</h3>
+                            <input className="w-full p-2 border rounded" placeholder="Заголовок" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} />
+                            <input className="w-full p-2 border rounded" placeholder="Краткое описание" value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <select className="p-2 border rounded" value={editingPost.category} onChange={e => setEditingPost({...editingPost, category: e.target.value})}>
+                                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                                <input className="p-2 border rounded" placeholder="Автор" value={editingPost.author} onChange={e => setEditingPost({...editingPost, author: e.target.value})} />
+                            </div>
+                            <ImagePicker label="Обложка" value={editingPost.image} onChange={url => setEditingPost({...editingPost, image: url})} />
+                            <div className="h-96">
+                                <RichTextEditor content={editingPost.content} onChange={html => setEditingPost({...editingPost, content: html})} onImageRequest={() => setShowRteImagePicker(true)} />
+                            </div>
+                            <div className="flex gap-4 pt-4"><button type="submit" className="bg-green-600 text-white px-4 py-2 rounded">Сохранить</button><button type="button" onClick={() => setEditingPost(null)} className="bg-slate-200 px-4 py-2 rounded">Отмена</button></div>
                         </form>
                     )}
                 </div>
