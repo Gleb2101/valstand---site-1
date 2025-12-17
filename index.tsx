@@ -13,7 +13,7 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary ловит ошибки отрисовки и показывает понятное сообщение вместо белого экрана
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   public state: ErrorBoundaryState = { hasError: false, error: null };
 
   static getDerivedStateFromError(error: any): ErrorBoundaryState {

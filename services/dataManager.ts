@@ -110,7 +110,7 @@ export const dataManager = {
   getServices: (): Promise<ServiceItem[]> => {
       // Sort services by orderIndex if available
       return getCached('services', 'services', SERVICES).then(items => {
-          return items.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+          return items.sort((a: ServiceItem, b: ServiceItem) => (a.orderIndex || 0) - (b.orderIndex || 0));
       });
   },
   saveService: async (item: ServiceItem) => {
