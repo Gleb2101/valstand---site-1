@@ -52,6 +52,7 @@ export interface CaseStudy {
   challenge?: string;
   solution?: string;
   fullDescription?: string;
+  serviceId?: string; // Linked service ID
 }
 
 export interface TeamMember {

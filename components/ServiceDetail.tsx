@@ -1,17 +1,18 @@
 
-
 import React, { useState } from 'react';
-import { ArrowLeft, CheckCircle, Zap, ExternalLink, Image as ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
-import { ServiceItem } from '../types';
+import { ArrowLeft, CheckCircle, Zap, ExternalLink, Image as ImageIcon, ChevronDown, ChevronUp, ArrowRight, Briefcase } from 'lucide-react';
+import { ServiceItem, CaseStudy } from '../types';
 import ContactForm from './ContactForm';
 
 interface ServiceDetailProps {
   service: ServiceItem;
   onBack: () => void;
   onNavigate: (page: string) => void;
+  relatedCases?: CaseStudy[];
+  onViewCase?: (caseId: string) => void;
 }
 
-const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNavigate }) => {
+const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNavigate, relatedCases = [], onViewCase }) => {
   const [expandedStepIndex, setExpandedStepIndex] = useState<number | null>(null);
 
   const toggleStep = (index: number) => {
@@ -25,6 +26,9 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
 3. Каждое действие согласовывается с бизнес-целями.
 
 Мы не делаем работу "ради галочки". Если в процессе анализа мы понимаем, что изначальная гипотеза не сработает, мы честно говорим об этом и предлагаем альтернативу. Наш приоритет — окупаемость ваших инвестиций.`;
+
+  // Filter cases related to this service
+  const serviceCases = relatedCases.filter(c => c.serviceId === service.id);
 
   return (
     <div className="min-h-screen bg-slate-50 pt-20 animate-fade-in">
@@ -167,6 +171,49 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
           </div>
         </div>
       </section>
+
+      {/* Related Cases Section */}
+      {serviceCases.length > 0 && (
+        <section className="py-16 bg-white border-t border-slate-200">
+          <div className="container mx-auto px-4">
+            <h2 className="text-3xl font-bold text-slate-900 mb-10 flex items-center gap-3">
+              <Briefcase className="text-brand-orange" />
+              Кейсы по этой услуге
+            </h2>
+            <div className="grid md:grid-cols-2 gap-8">
+              {serviceCases.map((item) => (
+                <div 
+                  key={item.id}
+                  onClick={() => onViewCase && onViewCase(item.id)}
+                  className="flex flex-col md:flex-row gap-6 items-center glass-panel p-6 rounded-2xl hover:border-brand-orange/30 transition-all cursor-pointer group shadow-sm border border-slate-200"
+                >
+                  <div className="w-full md:w-1/3 h-48 rounded-xl overflow-hidden relative shadow-sm">
+                    <img 
+                      src={item.image} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700"
+                    />
+                  </div>
+                  <div className="w-full md:w-2/3">
+                    <span className="text-xs font-bold text-brand-orange uppercase tracking-wider mb-2 block">
+                      {item.category}
+                    </span>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2 group-hover:text-brand-orange transition-colors">
+                      {item.title}
+                    </h3>
+                    <p className="text-sm text-slate-600 line-clamp-2 mb-4">
+                      {item.description}
+                    </p>
+                    <button className="text-sm font-semibold text-slate-900 flex items-center gap-1 group-hover:gap-2 transition-all">
+                      Подробнее <ArrowRight size={14} className="text-brand-orange" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA / Contact Form */}
       <div className="bg-gradient-to-t from-slate-100 to-white">

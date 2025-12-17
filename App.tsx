@@ -269,6 +269,8 @@ const App: React.FC = () => {
             service={servicesData.find(s => s.id === view.serviceId) || servicesData[0]} 
             onBack={() => navigateTo('services')}
             onNavigate={navigateTo}
+            relatedCases={dynamicCases}
+            onViewCase={navigateToCase}
           />
         )}
 
