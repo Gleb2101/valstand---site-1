@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import Hero from './components/Hero';
 import Services from './components/Services';
@@ -23,25 +23,104 @@ import BlogPreview from './components/BlogPreview';
 import BlogPostView from './components/BlogPost';
 import { SERVICES as STATIC_SERVICES, PACKAGES } from './constants';
 import { dataManager } from './services/dataManager';
-import { CaseStudy, BlogPost, ServiceItem } from './types';
+import { CaseStudy, BlogPost, ServiceItem, ServicePackage } from './types';
 import { Loader } from 'lucide-react';
 
-type ViewState = 
-  | { type: 'home' }
-  | { type: 'services' }
-  | { type: 'cases' }
-  | { type: 'about' }
-  | { type: 'blog' }
-  | { type: 'contact' }
-  | { type: 'privacy' }
-  | { type: 'admin' }
-  | { type: 'service', serviceId: string }
-  | { type: 'package-detail', packageId: string }
-  | { type: 'case-detail', caseId: string }
-  | { type: 'blog-post', postId: string };
+// ScrollToTop Component
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+};
+
+// --- Route Wrapper Components ---
+
+const ServiceDetailRoute: React.FC<{
+  services: ServiceItem[]; 
+  cases: CaseStudy[];
+  onNavigate: (p: string) => void;
+  onViewCase: (id: string) => void;
+}> = ({ services, cases, onNavigate, onViewCase }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const service = services.find(s => s.id === id);
+
+  if (!service) return <Navigate to="/services" replace />;
+
+  return (
+    <ServiceDetail 
+      service={service} 
+      onBack={() => navigate('/services')}
+      onNavigate={onNavigate}
+      relatedCases={cases}
+      onViewCase={onViewCase}
+    />
+  );
+};
+
+const PackageDetailRoute: React.FC<{
+  onNavigate: (p: string) => void;
+}> = ({ onNavigate }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const pkg = PACKAGES.find(p => p.id === id);
+
+  if (!pkg) return <Navigate to="/services" replace />;
+
+  return (
+    <PackageDetail
+      pkg={pkg}
+      onBack={() => navigate('/services')}
+      onNavigate={onNavigate}
+    />
+  );
+};
+
+const CaseDetailRoute: React.FC<{
+  cases: CaseStudy[];
+  onNavigate: (p: string) => void;
+}> = ({ cases, onNavigate }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const caseStudy = cases.find(c => c.id === id);
+
+  if (!caseStudy) return <Navigate to="/cases" replace />;
+
+  return (
+    <CaseDetail 
+      caseStudy={caseStudy}
+      onBack={() => navigate('/cases')}
+      onOrder={() => onNavigate('contact')}
+    />
+  );
+};
+
+const BlogPostRoute: React.FC<{
+  posts: BlogPost[];
+  onNavigate: (p: string) => void;
+}> = ({ posts, onNavigate }) => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const post = posts.find(p => p.id === id);
+
+  if (!post) return <Navigate to="/blog" replace />;
+
+  return (
+    <BlogPostView 
+      post={post}
+      onBack={() => navigate('/blog')}
+      onNavigate={onNavigate}
+    />
+  );
+};
+
+// --- Main App Component ---
 
 const App: React.FC = () => {
-  const [view, setView] = useState<ViewState>({ type: 'home' });
+  const navigate = useNavigate();
+  const location = useLocation();
   const [selectedContactService, setSelectedContactService] = useState<string>('Комплексное продвижение');
   
   // Dynamic data
@@ -51,20 +130,23 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initial Data Load in Parallel
+    // Safety timeout to prevent infinite loading screen
+    const safetyTimer = setTimeout(() => {
+        setIsLoading(false);
+    }, 5000);
+
+    // Initial Data Load
     const loadData = async () => {
        setIsLoading(true);
        try {
-           // Warm up the server
-           dataManager.init(); 
+           // We do not wait for init() to avoid hanging if API is down
+           dataManager.init().catch(console.error);
            
-           // Fetch all heavy data in parallel
            const [cases, posts, services] = await Promise.all([
                dataManager.getCases(),
                dataManager.getBlogPosts(),
                dataManager.getServices()
            ]);
-           
            setDynamicCases(cases);
            setDynamicPosts(posts);
            setServicesData(services);
@@ -72,102 +154,61 @@ const App: React.FC = () => {
            console.error("Failed to load initial data", e);
        } finally {
            setIsLoading(false);
+           clearTimeout(safetyTimer);
        }
     };
     loadData();
+    return () => clearTimeout(safetyTimer);
   }, []);
 
-  const navigateTo = (page: string) => {
-     window.scrollTo(0, 0);
-     if (page === 'home' || page === 'services' || page === 'cases' || page === 'about' || page === 'blog' || page === 'contact' || page === 'privacy' || page === 'admin') {
-         setView({ type: page });
-     } else {
-         // Fallback
-         setView({ type: 'home' });
-     }
-  };
-
-  const navigateToService = (serviceId: string) => {
-    window.scrollTo(0, 0);
-    setView({ type: 'service', serviceId });
-  };
-
-  const navigateToPackage = (packageId: string) => {
-    window.scrollTo(0, 0);
-    setView({ type: 'package-detail', packageId });
-  };
-
-  const navigateToCase = (caseId: string) => {
-    window.scrollTo(0, 0);
-    setView({ type: 'case-detail', caseId });
-  };
-
-  const navigateToBlogPost = (postId: string) => {
-    window.scrollTo(0, 0);
-    setView({ type: 'blog-post', postId });
+  // Navigation Helper (replaces previous switch logic)
+  const handleNavigate = (page: string) => {
+     if (page === 'home') navigate('/');
+     else if (page === 'services') navigate('/services');
+     else if (page === 'cases') navigate('/cases');
+     else if (page === 'about') navigate('/about');
+     else if (page === 'blog') navigate('/blog');
+     else if (page === 'contact') navigate('/contact');
+     else if (page === 'privacy') navigate('/privacy');
+     else if (page === 'admin') navigate('/admin');
+     else navigate('/');
   };
 
   const handleQuickOrder = (serviceTitle: string) => {
     setSelectedContactService(serviceTitle);
-    setView({ type: 'contact' });
-    window.scrollTo(0, 0);
+    navigate('/contact');
   };
 
   const getCurrentPageKey = () => {
-    if (view.type === 'service') return `service:${view.serviceId}`;
-    if (view.type === 'package-detail') return `package:${view.packageId}`;
-    if (view.type === 'case-detail') return `case:${view.caseId}`;
-    if (view.type === 'blog-post') return `blog:${view.postId}`;
-    return view.type;
+    const path = location.pathname;
+    if (path === '/') return 'home';
+    if (path.startsWith('/admin')) return 'admin';
+    if (path.startsWith('/services/')) return `service:${path.split('/')[2]}`;
+    if (path.startsWith('/packages/')) return `package:${path.split('/')[2]}`;
+    if (path.startsWith('/cases/')) return `case:${path.split('/')[2]}`;
+    if (path.startsWith('/blog/')) return `blog:${path.split('/')[2]}`;
+    return path.substring(1); // 'services', 'cases', etc.
   };
 
-  // Determine dynamic props for SEO
+  // Determine SEO title/desc dynamically based on data + route
   let dynamicTitle;
   let dynamicDescription;
+  const pathParts = location.pathname.split('/');
   
-  if (view.type === 'service') {
-    const s = servicesData.find(s => s.id === view.serviceId);
-    if (s) {
-      dynamicTitle = s.title;
-      dynamicDescription = s.description;
-    }
-  } else if (view.type === 'package-detail') {
-    const p = PACKAGES.find(p => p.id === view.packageId);
-    if (p) {
-      dynamicTitle = `Пакет "${p.title}"`;
-      dynamicDescription = p.description;
-    }
-  } else if (view.type === 'case-detail') {
-    const c = dynamicCases.find(c => c.id === view.caseId);
-    if (c) {
-      dynamicTitle = c.title;
-      dynamicDescription = c.description;
-    }
-  } else if (view.type === 'blog-post') {
-    const p = dynamicPosts.find(p => p.id === view.postId);
-    if (p) {
-      dynamicTitle = p.title;
-      dynamicDescription = p.excerpt;
-    }
+  if (location.pathname.startsWith('/services/') && pathParts[2]) {
+    const s = servicesData.find(s => s.id === pathParts[2]);
+    if (s) { dynamicTitle = s.title; dynamicDescription = s.description; }
+  } else if (location.pathname.startsWith('/packages/') && pathParts[2]) {
+    const p = PACKAGES.find(p => p.id === pathParts[2]);
+    if (p) { dynamicTitle = `Пакет "${p.title}"`; dynamicDescription = p.description; }
+  } else if (location.pathname.startsWith('/cases/') && pathParts[2]) {
+    const c = dynamicCases.find(c => c.id === pathParts[2]);
+    if (c) { dynamicTitle = c.title; dynamicDescription = c.description; }
+  } else if (location.pathname.startsWith('/blog/') && pathParts[2]) {
+    const p = dynamicPosts.find(p => p.id === pathParts[2]);
+    if (p) { dynamicTitle = p.title; dynamicDescription = p.excerpt; }
   }
 
-  // Admin View takes over full screen
-  if (view.type === 'admin') {
-    return <AdminPanel onBack={() => {
-        // Reload data when returning from admin
-        Promise.all([
-            dataManager.getServices(),
-            dataManager.getCases(),
-            dataManager.getBlogPosts()
-        ]).then(([s, c, p]) => {
-            setServicesData(s);
-            setDynamicCases(c);
-            setDynamicPosts(p);
-            navigateTo('home');
-        });
-    }} />;
-  }
-  
   if (isLoading) {
       return (
           <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -179,8 +220,26 @@ const App: React.FC = () => {
       );
   }
 
+  // Admin Panel renders without layout if active
+  if (location.pathname === '/admin') {
+     return <AdminPanel onBack={() => {
+        // Reload data when returning from admin
+        Promise.all([
+            dataManager.getServices(),
+            dataManager.getCases(),
+            dataManager.getBlogPosts()
+        ]).then(([s, c, p]) => {
+            setServicesData(s);
+            setDynamicCases(c);
+            setDynamicPosts(p);
+            navigate('/');
+        });
+    }} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-brand-orange selection:text-white flex flex-col">
+      <ScrollToTop />
       <CodeInjector />
       <GlobalPopup />
       <SEOHead 
@@ -189,113 +248,103 @@ const App: React.FC = () => {
         dynamicDescription={dynamicDescription}
       />
       
-      <Header onNavigate={navigateTo} currentPage={getCurrentPageKey()} />
+      <Header onNavigate={handleNavigate} currentPage={getCurrentPageKey()} />
       
       <main className="flex-grow">
-        {view.type === 'home' && (
-          <>
-            <Hero onNavigate={navigateTo} />
-            <Services 
-              services={servicesData}
-              onSelectService={navigateToService} 
-              onQuickOrder={handleQuickOrder}
-              isHomePreview={true}
-            />
-            <AboutPreview onNavigate={() => navigateTo('about')} />
-            <div id="cases">
-              <CasesPage 
-                onOrder={() => navigateTo('contact')} 
-                isHomePreview={true}
-                onViewAll={() => navigateTo('cases')}
-                onSelectCase={navigateToCase}
-                initialCases={dynamicCases}
-              />
+        <Routes>
+          <Route path="/" element={
+             <>
+               <Hero onNavigate={handleNavigate} />
+               <Services 
+                 services={servicesData}
+                 onSelectService={(id) => navigate(`/services/${id}`)}
+                 onQuickOrder={handleQuickOrder}
+                 isHomePreview={true}
+               />
+               <AboutPreview onNavigate={() => navigate('/about')} />
+               <CasesPage 
+                   onOrder={() => navigate('/contact')} 
+                   isHomePreview={true}
+                   onViewAll={() => navigate('/cases')}
+                   onSelectCase={(id) => navigate(`/cases/${id}`)}
+                   initialCases={dynamicCases}
+               />
+               <BlogPreview 
+                   onSelectPost={(id) => navigate(`/blog/${id}`)}
+                   onViewAll={() => navigate('/blog')}
+                   initialPosts={dynamicPosts}
+               />
+               <FAQ />
+               <Testimonials />
+               <ContactForm services={servicesData} selectedService={selectedContactService} onNavigate={handleNavigate} />
+             </>
+          } />
+
+          <Route path="/services" element={
+            <div className="pt-20">
+               <Services 
+                 services={servicesData}
+                 onSelectService={(id) => navigate(`/services/${id}`)}
+                 onQuickOrder={handleQuickOrder}
+                 isHomePreview={false}
+                 onViewPackage={(id) => navigate(`/packages/${id}`)}
+               />
             </div>
-            <BlogPreview 
-                onSelectPost={navigateToBlogPost} 
-                onViewAll={() => navigateTo('blog')} 
-                initialPosts={dynamicPosts}
+          } />
+
+          <Route path="/services/:id" element={
+            <ServiceDetailRoute 
+              services={servicesData} 
+              cases={dynamicCases} 
+              onNavigate={handleNavigate} 
+              onViewCase={(id) => navigate(`/cases/${id}`)}
             />
-            <FAQ />
-            <Testimonials />
-            <ContactForm services={servicesData} selectedService={selectedContactService} onNavigate={navigateTo} />
-          </>
-        )}
+          } />
 
-        {view.type === 'services' && (
-          <div className="pt-20">
-             <Services 
-              services={servicesData}
-              onSelectService={navigateToService} 
-              onQuickOrder={handleQuickOrder}
-              isHomePreview={false}
-              onViewPackage={navigateToPackage}
+          <Route path="/packages/:id" element={
+            <PackageDetailRoute onNavigate={handleNavigate} />
+          } />
+
+          <Route path="/cases" element={
+            <CasesPage 
+               onOrder={() => navigate('/contact')} 
+               onSelectCase={(id) => navigate(`/cases/${id}`)}
+               initialCases={dynamicCases}
             />
-          </div>
-        )}
+          } />
 
-        {view.type === 'cases' && (
-          <CasesPage 
-            onOrder={() => navigateTo('contact')} 
-            onSelectCase={navigateToCase}
-            initialCases={dynamicCases}
-          />
-        )}
+          <Route path="/cases/:id" element={
+            <CaseDetailRoute cases={dynamicCases} onNavigate={handleNavigate} />
+          } />
 
-        {view.type === 'about' && (
-          <AboutPage />
-        )}
+          <Route path="/about" element={<AboutPage />} />
 
-        {view.type === 'blog' && (
-          <BlogPage onSelectPost={navigateToBlogPost} initialPosts={dynamicPosts} />
-        )}
+          <Route path="/blog" element={
+            <BlogPage 
+              onSelectPost={(id) => navigate(`/blog/${id}`)} 
+              initialPosts={dynamicPosts} 
+            />
+          } />
 
-        {view.type === 'blog-post' && (
-          <BlogPostView 
-            post={dynamicPosts.find(p => p.id === view.postId) || dynamicPosts[0]}
-            onBack={() => navigateTo('blog')}
-            onNavigate={navigateTo}
-          />
-        )}
+          <Route path="/blog/:id" element={
+            <BlogPostRoute posts={dynamicPosts} onNavigate={handleNavigate} />
+          } />
 
-        {view.type === 'contact' && (
-          <div className="pt-20 min-h-screen flex flex-col justify-center">
-            <ContactForm services={servicesData} selectedService={selectedContactService} isPage={true} onNavigate={navigateTo} />
-          </div>
-        )}
+          <Route path="/contact" element={
+            <div className="pt-20 min-h-screen flex flex-col justify-center">
+               <ContactForm services={servicesData} selectedService={selectedContactService} isPage={true} onNavigate={handleNavigate} />
+            </div>
+          } />
 
-        {view.type === 'service' && (
-          <ServiceDetail 
-            service={servicesData.find(s => s.id === view.serviceId) || servicesData[0]} 
-            onBack={() => navigateTo('services')}
-            onNavigate={navigateTo}
-            relatedCases={dynamicCases}
-            onViewCase={navigateToCase}
-          />
-        )}
+          <Route path="/privacy" element={
+             <PrivacyPolicy onBack={() => navigate('/')} />
+          } />
 
-        {view.type === 'package-detail' && (
-          <PackageDetail
-            pkg={PACKAGES.find(p => p.id === view.packageId) || PACKAGES[0]}
-            onBack={() => navigateTo('services')}
-            onNavigate={navigateTo}
-          />
-        )}
-
-        {view.type === 'case-detail' && (
-          <CaseDetail 
-            caseStudy={dynamicCases.find(c => c.id === view.caseId) || dynamicCases[0]}
-            onBack={() => navigateTo('cases')}
-            onOrder={() => navigateTo('contact')}
-          />
-        )}
-
-        {view.type === 'privacy' && (
-          <PrivacyPolicy onBack={() => navigateTo('home')} />
-        )}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
       
-      <Footer onNavigate={navigateTo} />
+      <Footer onNavigate={handleNavigate} />
     </div>
   );
 };

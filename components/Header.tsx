@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Menu, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { dataManager } from '../services/dataManager';
 
 interface HeaderProps {
@@ -27,12 +27,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, page: string) => {
-    e.preventDefault();
-    onNavigate(page);
-    setMobileMenuOpen(false);
-  };
-
   const navLinks = [
     { name: 'Услуги', page: 'services' },
     { name: 'Кейсы', page: 'cases' },
@@ -49,7 +43,11 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
     >
       <div className="container mx-auto px-4 flex justify-between items-center">
         {/* Logo */}
-        <a href="#" onClick={(e) => handleLinkClick(e, 'home')} className="flex items-center gap-3 group select-none">
+        <Link 
+          to="/" 
+          onClick={() => setMobileMenuOpen(false)} 
+          className="flex items-center gap-3 group select-none"
+        >
            {logoUrl ? (
              <img 
                 src={logoUrl} 
@@ -67,29 +65,27 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
            <span className={`font-bold text-2xl tracking-tight transition-colors ${isScrolled ? 'text-slate-900' : 'text-slate-900'}`}>
              Valstand
            </span>
-        </a>
+        </Link>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex gap-8 items-center">
           {navLinks.map((link) => (
-            <a 
+            <Link 
               key={link.name} 
-              href="#"
-              onClick={(e) => handleLinkClick(e, link.page)}
+              to={`/${link.page}`}
               className={`text-sm uppercase tracking-wider font-medium transition-colors cursor-pointer ${
-                currentPage === link.page || (currentPage.startsWith('blog') && link.page === 'blog') ? 'text-brand-orange' : 'text-slate-600 hover:text-brand-orange'
+                currentPage.includes(link.page) ? 'text-brand-orange' : 'text-slate-600 hover:text-brand-orange'
               }`}
             >
               {link.name}
-            </a>
+            </Link>
           ))}
-          <a 
-            href="#"
-            onClick={(e) => handleLinkClick(e, 'contact')}
+          <Link 
+            to="/contact"
             className="px-5 py-2 bg-gradient-to-r from-brand-yellow to-brand-orange text-white font-bold rounded-full hover:shadow-[0_0_20px_rgba(255,184,0,0.4)] transition-all transform hover:-translate-y-0.5 cursor-pointer"
           >
             Обсудить проект
-          </a>
+          </Link>
         </nav>
 
         {/* Mobile Menu Button */}
@@ -103,26 +99,26 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
 
       {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-2xl p-4 flex flex-col gap-4">
+        <div className="md:hidden absolute top-full left-0 w-full bg-white border-b border-slate-200 shadow-2xl p-4 flex flex-col gap-4 animate-fade-in">
           {navLinks.map((link) => (
-            <a 
+            <Link 
               key={link.name} 
-              href="#"
+              to={`/${link.page}`}
               className={`block text-lg py-2 border-b border-slate-100 cursor-pointer ${
-                currentPage === link.page ? 'text-brand-orange' : 'text-slate-700'
+                currentPage.includes(link.page) ? 'text-brand-orange' : 'text-slate-700'
               }`}
-              onClick={(e) => handleLinkClick(e, link.page)}
+              onClick={() => setMobileMenuOpen(false)}
             >
               {link.name}
-            </a>
+            </Link>
           ))}
-          <a 
-            href="#" 
+          <Link 
+            to="/contact" 
             className="block text-center w-full py-3 bg-brand-yellow text-white font-bold rounded-lg mt-2 cursor-pointer shadow-md"
-            onClick={(e) => handleLinkClick(e, 'contact')}
+            onClick={() => setMobileMenuOpen(false)}
           >
             Обсудить проект
-          </a>
+          </Link>
         </div>
       )}
     </header>
