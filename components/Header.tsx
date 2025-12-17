@@ -49,13 +49,20 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, currentPage }) => {
     >
       <div className="container mx-auto px-4 flex justify-between items-center">
         {/* Logo */}
-        <a href="#" onClick={(e) => handleLinkClick(e, 'home')} className="flex items-center gap-2 group">
+        <a href="#" onClick={(e) => handleLinkClick(e, 'home')} className="flex items-center gap-3 group select-none">
            {logoUrl ? (
-             <img src={logoUrl} alt="Valstand Logo" className="h-10 w-auto object-contain" />
+             <img 
+                src={logoUrl} 
+                alt="Valstand Logo" 
+                className="h-12 w-auto object-contain rounded-xl shadow-lg bg-white transform transition-all duration-500 ease-in-out group-hover:rotate-12 group-hover:scale-105 group-hover:shadow-xl" 
+             />
            ) : (
-             <div className="w-10 h-10 bg-gradient-to-br from-brand-yellow to-brand-orange rounded-lg flex items-center justify-center transform group-hover:rotate-6 transition-transform shadow-lg">
-                <span className="text-white font-bold text-xl">V</span>
-             </div>
+             <img 
+                src="/logo.png" 
+                onError={(e) => e.currentTarget.src = '/favicon_val.svg'}
+                alt="Valstand Logo" 
+                className="h-12 w-auto object-contain rounded-xl shadow-lg bg-white transform transition-all duration-500 ease-in-out group-hover:rotate-12 group-hover:scale-105 group-hover:shadow-xl" 
+             />
            )}
            <span className={`font-bold text-2xl tracking-tight transition-colors ${isScrolled ? 'text-slate-900' : 'text-slate-900'}`}>
              Valstand
