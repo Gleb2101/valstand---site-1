@@ -101,6 +101,15 @@ export interface PageSEO {
   ogImage?: string;
 }
 
+export interface MailConfig {
+  host: string;
+  port: string;
+  user: string;
+  pass: string;
+  receiverEmail: string;
+  enabled: boolean;
+}
+
 export interface SiteSettings {
   favicon?: string; 
   logo?: string; // URL to logo
@@ -113,6 +122,7 @@ export interface SiteSettings {
   headerCode: string; 
   footerCode: string; 
   seo: Record<string, PageSEO>;
+  mailConfig?: MailConfig;
 }
 
 export interface StoredImage {

@@ -130,23 +130,20 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Safety timeout to prevent infinite loading screen
-    const safetyTimer = setTimeout(() => {
-        setIsLoading(false);
-    }, 5000);
-
     // Initial Data Load
     const loadData = async () => {
        setIsLoading(true);
        try {
-           // We do not wait for init() to avoid hanging if API is down
-           dataManager.init().catch(console.error);
+           // Warm up the server
+           dataManager.init(); 
            
+           // Fetch all heavy data in parallel
            const [cases, posts, services] = await Promise.all([
                dataManager.getCases(),
                dataManager.getBlogPosts(),
                dataManager.getServices()
            ]);
+           
            setDynamicCases(cases);
            setDynamicPosts(posts);
            setServicesData(services);
@@ -154,11 +151,9 @@ const App: React.FC = () => {
            console.error("Failed to load initial data", e);
        } finally {
            setIsLoading(false);
-           clearTimeout(safetyTimer);
        }
     };
     loadData();
-    return () => clearTimeout(safetyTimer);
   }, []);
 
   // Navigation Helper (replaces previous switch logic)

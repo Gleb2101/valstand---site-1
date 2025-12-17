@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem } from '../types';
 import { PACKAGES, SERVICES, CASES, TEAM_MEMBERS, TESTIMONIALS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
@@ -91,8 +90,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         setCategories(cat);
         setServicesData(srv);
         setSeoFiles(sf);
-        // Ensure socials object exists
-        setSettings({ ...s, socials: s.socials || {} });
+        // Ensure settings structure
+        setSettings({ 
+            ...s, 
+            socials: s.socials || {}, 
+            mailConfig: s.mailConfig || { host: '', port: '465', user: '', pass: '', receiverEmail: '', enabled: false } 
+        });
     } catch (e) {
         console.error(e);
         // Do not alert constantly if offline, let dataManager fallback
@@ -588,6 +591,80 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
+            {/* --- LEADS --- */}
+            {activeTab === 'leads' && (
+                <div>
+                   <h3 className="font-bold text-xl mb-6">Заявки с сайта</h3>
+                   <div className="overflow-x-auto">
+                     <table className="w-full text-left border-collapse">
+                       <thead>
+                         <tr className="bg-slate-50 border-b border-slate-200">
+                           <th className="p-4 font-bold text-slate-600">Дата</th>
+                           <th className="p-4 font-bold text-slate-600">Имя</th>
+                           <th className="p-4 font-bold text-slate-600">Телефон</th>
+                           <th className="p-4 font-bold text-slate-600">Услуга</th>
+                           <th className="p-4 font-bold text-slate-600">Статус</th>
+                           <th className="p-4 font-bold text-slate-600">Действия</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {leads.length === 0 && (
+                            <tr>
+                                <td colSpan={6} className="p-8 text-center text-slate-400">Заявок пока нет.</td>
+                            </tr>
+                         )}
+                         {leads.map(lead => (
+                           <tr key={lead.id} className="border-b border-slate-100 hover:bg-slate-50">
+                             <td className="p-4 text-sm whitespace-nowrap">{new Date(lead.date).toLocaleString()}</td>
+                             <td className="p-4 font-medium">{lead.name}</td>
+                             <td className="p-4">{lead.phone}</td>
+                             <td className="p-4 text-sm text-slate-600">{lead.service}</td>
+                             <td className="p-4">
+                               <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
+                                 lead.status === 'new' ? 'bg-green-100 text-green-700' :
+                                 lead.status === 'contacted' ? 'bg-blue-100 text-blue-700' :
+                                 'bg-slate-100 text-slate-500'
+                               }`}>
+                                 {lead.status === 'new' ? 'Новая' : lead.status === 'contacted' ? 'В работе' : 'Архив'}
+                               </span>
+                             </td>
+                             <td className="p-4">
+                               <div className="flex gap-2">
+                                 {lead.status === 'new' && (
+                                   <button 
+                                     onClick={() => handleLeadStatus(lead.id, 'contacted')}
+                                     className="p-1.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+                                     title="Отметить как В работе"
+                                   >
+                                     <CheckCircle size={16} />
+                                   </button>
+                                 )}
+                                 {lead.status !== 'archived' && (
+                                   <button 
+                                     onClick={() => handleLeadStatus(lead.id, 'archived')}
+                                     className="p-1.5 bg-slate-100 text-slate-600 rounded hover:bg-slate-200"
+                                     title="В архив"
+                                   >
+                                     <Briefcase size={16} />
+                                   </button>
+                                 )}
+                                 <button 
+                                   onClick={(e) => handleDeleteLead(e, lead.id)}
+                                   className="p-1.5 bg-red-100 text-red-600 rounded hover:bg-red-200"
+                                   title="Удалить"
+                                 >
+                                   <Trash2 size={16} />
+                                 </button>
+                               </div>
+                             </td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                   </div>
+                </div>
+            )}
+
             {/* --- MEDIA --- */}
             {activeTab === 'media' && (
                 <div className="h-[600px]">
@@ -630,7 +707,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
             
-            {/* Same components for other tabs (reviews, team, etc.) as before... */}
             {activeTab === 'reviews' && (
                 <div>
                     {!editingReview ? (
@@ -654,9 +730,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
-            {/* Other tabs omitted for brevity but remain unchanged except where noted above */}
-            {/* Team, Popups, Blog, Services, Leads, SEO, Settings */}
-            
             {activeTab === 'team' && (
                 <div>
                     {!editingMember ? (
@@ -901,7 +974,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
             
-            {/* Other tabs omitted... */}
             {activeTab === 'blog' && (
                 <div>
                     {!editingPost ? (
@@ -1062,6 +1134,78 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                         <h3 className="font-bold text-xl border-b pb-2">Основные</h3>
                         <ImagePicker label="Favicon URL (SVG/ICO)" value={settings.favicon || ''} onChange={url => setSettings({...settings, favicon: url})} />
                         <ImagePicker label="Логотип (URL)" value={settings.logo || ''} onChange={url => setSettings({...settings, logo: url})} />
+                    </div>
+                    
+                    {/* Mail Settings */}
+                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                        <h3 className="font-bold text-xl border-b pb-2 flex items-center gap-2">
+                           <Mail size={20} />
+                           Уведомления на почту (SMTP)
+                        </h3>
+                        <div className="p-4 bg-yellow-50 text-yellow-800 text-sm rounded-lg mb-4 flex items-start gap-2">
+                            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                            <p>Введите данные SMTP вашего почтового провайдера (например, Yandex, Google). Для Google нужен "App Password".</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mb-4">
+                            <input 
+                                type="checkbox" 
+                                id="mailEnabled"
+                                checked={settings.mailConfig?.enabled || false}
+                                onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), enabled: e.target.checked}})}
+                                className="w-5 h-5 accent-brand-orange"
+                            />
+                            <label htmlFor="mailEnabled" className="font-bold cursor-pointer">Включить отправку уведомлений</label>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold mb-1">SMTP Хост (Host)</label>
+                                <input 
+                                    className="w-full p-2 border rounded" 
+                                    placeholder="smtp.yandex.ru"
+                                    value={settings.mailConfig?.host || ''} 
+                                    onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), host: e.target.value}})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">SMTP Порт</label>
+                                <input 
+                                    className="w-full p-2 border rounded" 
+                                    placeholder="465"
+                                    value={settings.mailConfig?.port || ''} 
+                                    onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), port: e.target.value}})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Пользователь (Email отправителя)</label>
+                                <input 
+                                    className="w-full p-2 border rounded" 
+                                    placeholder="bot@valstand.ru"
+                                    value={settings.mailConfig?.user || ''} 
+                                    onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), user: e.target.value}})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold mb-1">Пароль (SMTP Password)</label>
+                                <input 
+                                    type="password"
+                                    className="w-full p-2 border rounded" 
+                                    value={settings.mailConfig?.pass || ''} 
+                                    onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), pass: e.target.value}})} 
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="pt-2 border-t mt-2">
+                            <label className="block text-sm font-bold mb-1">Куда отправлять уведомления (Receiver Email)</label>
+                            <input 
+                                className="w-full p-2 border rounded" 
+                                placeholder="admin@valstand.ru"
+                                value={settings.mailConfig?.receiverEmail || ''} 
+                                onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), receiverEmail: e.target.value}})} 
+                            />
+                        </div>
                     </div>
 
                     <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">

@@ -1,4 +1,3 @@
-
 import express from 'express';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
@@ -6,6 +5,7 @@ import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,6 +81,55 @@ const initTables = async (connection) => {
 
 connectDB();
 
+// --- HELPER FOR EMAIL ---
+const sendEmailNotification = async (lead) => {
+    if (!pool) return;
+    try {
+        // Get Settings
+        const [rows] = await pool.query("SELECT data FROM settings WHERE setting_key = 'global'");
+        if (rows.length === 0) return;
+        
+        const settings = JSON.parse(rows[0].data);
+        const mailConfig = settings.mailConfig;
+
+        if (!mailConfig || !mailConfig.enabled || !mailConfig.host || !mailConfig.user || !mailConfig.pass || !mailConfig.receiverEmail) {
+            console.log("Email notifications disabled or not configured.");
+            return;
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: mailConfig.host,
+            port: parseInt(mailConfig.port) || 465,
+            secure: parseInt(mailConfig.port) === 465, // true for 465, false for other ports
+            auth: {
+                user: mailConfig.user,
+                pass: mailConfig.pass,
+            },
+        });
+
+        const mailOptions = {
+            from: `"Valstand Bot" <${mailConfig.user}>`,
+            to: mailConfig.receiverEmail,
+            subject: `🔥 Новая заявка: ${lead.name}`,
+            html: `
+                <h2>Новая заявка на сайте Valstand</h2>
+                <p><strong>Имя:</strong> ${lead.name}</p>
+                <p><strong>Телефон:</strong> ${lead.phone}</p>
+                <p><strong>Услуга:</strong> ${lead.service}</p>
+                <p><strong>Дата:</strong> ${lead.date}</p>
+                <br />
+                <a href="https://valstand.ru/admin">Перейти в админку</a>
+            `,
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Email sent: %s", info.messageId);
+
+    } catch (error) {
+        console.error("Error sending email:", error);
+    }
+};
+
 // --- API ROUTES ---
 
 const dbCheck = (req, res, next) => {
@@ -98,17 +147,12 @@ app.get('/api/status', async (req, res) => {
 
 // Custom Route for Favicon from absolute path
 app.get('/favicon_val.svg', (req, res) => {
-    // Exact path requested by user
     const iconPath = '/var/www/www-root/data/www/valstand.ru/favicon_val.svg';
-    
     try {
         if (fs.existsSync(iconPath)) {
             res.sendFile(iconPath);
         } else {
-            console.warn(`Favicon not found at ${iconPath}, checking local...`);
-            // Fallback to local project file if absolute path doesn't exist (dev environment)
-            const localPath = path.join(__dirname, '../public/favicon_val.svg'); // Assuming it might be in public
-            // Or serve a default 404
+            const localPath = path.join(__dirname, '../public/favicon_val.svg');
             res.status(404).send('Favicon not found');
         }
     } catch (e) {
@@ -186,9 +230,6 @@ const createCrudHandlers = (table) => {
     app.get(`/api/${table}`, dbCheck, async (req, res) => {
         try {
             const [rows] = await pool.query(`SELECT * FROM ${table}`);
-            
-            // SPECIAL HANDLING FOR IMAGES
-            // Images store raw base64 data in the 'data' column, not a JSON object string.
             if (table === 'images') {
                 const items = rows.map(r => ({
                     id: r.id,
@@ -197,8 +238,6 @@ const createCrudHandlers = (table) => {
                 }));
                 return res.json(items);
             }
-
-            // Standard handling for other tables (JSON parsing)
             const items = rows.map(r => { 
                 try { 
                     return JSON.parse(r.data); 
@@ -215,13 +254,11 @@ const createCrudHandlers = (table) => {
             const item = req.body;
             const dataStr = JSON.stringify(item);
             
-            // Handle specific columns for search/indexing optimizations if needed
             if (table === 'blog_posts') {
                  await pool.query(`INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, [item.id, item.title, item.category, dataStr]);
             } else if (table === 'cases' || table === 'services') {
                  await pool.query(`INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, [item.id, item.title, dataStr]);
             } else if (table === 'images') {
-                 // For images, we store the base64 data directly in the data column
                  await pool.query(`INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, [item.id, item.name, item.data]);
             } else {
                  await pool.query(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)`, [item.id, dataStr]);
@@ -250,7 +287,14 @@ app.post('/api/leads', dbCheck, async (req, res) => {
     try {
         const { id, name, phone, service, status, date } = req.body;
         const validDate = date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ');
+        
+        // 1. Save to DB
         await pool.query('INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status)', [id, name, phone, service, status, validDate]);
+        
+        // 2. Send Email Notification (Async)
+        const leadData = { name, phone, service, date: validDate };
+        sendEmailNotification(leadData);
+
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -316,7 +360,7 @@ createCrudHandlers('team');
 createCrudHandlers('popups');
 createCrudHandlers('images');
 createCrudHandlers('blog_posts');
-createCrudHandlers('services'); // Register services handler
+createCrudHandlers('services'); 
 
 // --- STATIC FILES ---
 app.use(express.static(distPath, {
