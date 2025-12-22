@@ -1,13 +1,14 @@
 import React from 'react';
 import { Check, ArrowRight, Eye } from 'lucide-react';
-import { PACKAGES } from '../constants';
+import { ServicePackage } from '../types';
 
 interface PackagesProps {
+  packages: ServicePackage[];
   onOrder: (packageName: string) => void;
   onViewDetails?: (packageId: string) => void;
 }
 
-const Packages: React.FC<PackagesProps> = ({ onOrder, onViewDetails }) => {
+const Packages: React.FC<PackagesProps> = ({ packages, onOrder, onViewDetails }) => {
   return (
     <div className="py-24 bg-gradient-to-b from-slate-50 to-white border-t border-slate-200">
       <div className="container mx-auto px-4">
@@ -22,7 +23,7 @@ const Packages: React.FC<PackagesProps> = ({ onOrder, onViewDetails }) => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {PACKAGES.map((pkg) => (
+          {packages.map((pkg) => (
             <div 
               key={pkg.id} 
               className={`relative flex flex-col p-6 rounded-2xl border transition-all duration-300 hover:-translate-y-2 ${

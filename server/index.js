@@ -64,8 +64,8 @@ const initTables = async (connection) => {
     try {
         await connection.query(`CREATE TABLE IF NOT EXISTS leads (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), phone VARCHAR(255), service VARCHAR(255), status VARCHAR(50), date DATETIME)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS cases (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
-        // Services table for storing service data
         await connection.query(`CREATE TABLE IF NOT EXISTS services (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
+        await connection.query(`CREATE TABLE IF NOT EXISTS packages (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS blog_posts (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), category VARCHAR(255), data LONGTEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS images (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), data LONGTEXT)`);
         const simpleTables = ['team', 'testimonials', 'popups'];
@@ -256,7 +256,7 @@ const createCrudHandlers = (table) => {
             
             if (table === 'blog_posts') {
                  await pool.query(`INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, [item.id, item.title, item.category, dataStr]);
-            } else if (table === 'cases' || table === 'services') {
+            } else if (table === 'cases' || table === 'services' || table === 'packages') {
                  await pool.query(`INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, [item.id, item.title, dataStr]);
             } else if (table === 'images') {
                  await pool.query(`INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, [item.id, item.name, item.data]);
@@ -361,6 +361,7 @@ createCrudHandlers('popups');
 createCrudHandlers('images');
 createCrudHandlers('blog_posts');
 createCrudHandlers('services'); 
+createCrudHandlers('packages'); 
 
 // --- STATIC FILES ---
 app.use(express.static(distPath, {

@@ -21,7 +21,7 @@ import SEOHead from './components/SEOHead';
 import BlogPage from './components/BlogPage';
 import BlogPreview from './components/BlogPreview';
 import BlogPostView from './components/BlogPost';
-import { SERVICES as STATIC_SERVICES, PACKAGES } from './constants';
+import { SERVICES as STATIC_SERVICES, PACKAGES as STATIC_PACKAGES } from './constants';
 import { dataManager } from './services/dataManager';
 import { CaseStudy, BlogPost, ServiceItem, ServicePackage } from './types';
 import { Loader } from 'lucide-react';
@@ -61,11 +61,12 @@ const ServiceDetailRoute: React.FC<{
 };
 
 const PackageDetailRoute: React.FC<{
+  packages: ServicePackage[];
   onNavigate: (p: string) => void;
-}> = ({ onNavigate }) => {
+}> = ({ packages, onNavigate }) => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const pkg = PACKAGES.find(p => p.id === id);
+  const pkg = packages.find(p => p.id === id);
 
   if (!pkg) return <Navigate to="/services" replace />;
 
@@ -127,6 +128,7 @@ const App: React.FC = () => {
   const [dynamicCases, setDynamicCases] = useState<CaseStudy[]>([]);
   const [dynamicPosts, setDynamicPosts] = useState<BlogPost[]>([]);
   const [servicesData, setServicesData] = useState<ServiceItem[]>(STATIC_SERVICES);
+  const [packagesData, setPackagesData] = useState<ServicePackage[]>(STATIC_PACKAGES);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -134,19 +136,17 @@ const App: React.FC = () => {
     const loadData = async () => {
        setIsLoading(true);
        try {
-           // Warm up the server
            dataManager.init(); 
-           
-           // Fetch all heavy data in parallel
-           const [cases, posts, services] = await Promise.all([
+           const [cases, posts, services, pkgs] = await Promise.all([
                dataManager.getCases(),
                dataManager.getBlogPosts(),
-               dataManager.getServices()
+               dataManager.getServices(),
+               dataManager.getPackages()
            ]);
-           
            setDynamicCases(cases);
            setDynamicPosts(posts);
            setServicesData(services);
+           setPackagesData(pkgs);
        } catch (e) {
            console.error("Failed to load initial data", e);
        } finally {
@@ -156,7 +156,6 @@ const App: React.FC = () => {
     loadData();
   }, []);
 
-  // Navigation Helper (replaces previous switch logic)
   const handleNavigate = (page: string) => {
      if (page === 'home') navigate('/');
      else if (page === 'services') navigate('/services');
@@ -182,10 +181,9 @@ const App: React.FC = () => {
     if (path.startsWith('/packages/')) return `package:${path.split('/')[2]}`;
     if (path.startsWith('/cases/')) return `case:${path.split('/')[2]}`;
     if (path.startsWith('/blog/')) return `blog:${path.split('/')[2]}`;
-    return path.substring(1); // 'services', 'cases', etc.
+    return path.substring(1); 
   };
 
-  // Determine SEO title/desc dynamically based on data + route
   let dynamicTitle;
   let dynamicDescription;
   const pathParts = location.pathname.split('/');
@@ -194,7 +192,7 @@ const App: React.FC = () => {
     const s = servicesData.find(s => s.id === pathParts[2]);
     if (s) { dynamicTitle = s.title; dynamicDescription = s.description; }
   } else if (location.pathname.startsWith('/packages/') && pathParts[2]) {
-    const p = PACKAGES.find(p => p.id === pathParts[2]);
+    const p = packagesData.find(p => p.id === pathParts[2]);
     if (p) { dynamicTitle = `Пакет "${p.title}"`; dynamicDescription = p.description; }
   } else if (location.pathname.startsWith('/cases/') && pathParts[2]) {
     const c = dynamicCases.find(c => c.id === pathParts[2]);
@@ -215,16 +213,16 @@ const App: React.FC = () => {
       );
   }
 
-  // Admin Panel renders without layout if active
   if (location.pathname === '/admin') {
      return <AdminPanel onBack={() => {
-        // Reload data when returning from admin
         Promise.all([
             dataManager.getServices(),
+            dataManager.getPackages(),
             dataManager.getCases(),
             dataManager.getBlogPosts()
-        ]).then(([s, c, p]) => {
+        ]).then(([s, pkgs, c, p]) => {
             setServicesData(s);
+            setPackagesData(pkgs);
             setDynamicCases(c);
             setDynamicPosts(p);
             navigate('/');
@@ -252,6 +250,7 @@ const App: React.FC = () => {
                <Hero onNavigate={handleNavigate} />
                <Services 
                  services={servicesData}
+                 packages={packagesData}
                  onSelectService={(id) => navigate(`/services/${id}`)}
                  onQuickOrder={handleQuickOrder}
                  isHomePreview={true}
@@ -279,6 +278,7 @@ const App: React.FC = () => {
             <div className="pt-20">
                <Services 
                  services={servicesData}
+                 packages={packagesData}
                  onSelectService={(id) => navigate(`/services/${id}`)}
                  onQuickOrder={handleQuickOrder}
                  isHomePreview={false}
@@ -297,7 +297,7 @@ const App: React.FC = () => {
           } />
 
           <Route path="/packages/:id" element={
-            <PackageDetailRoute onNavigate={handleNavigate} />
+            <PackageDetailRoute packages={packagesData} onNavigate={handleNavigate} />
           } />
 
           <Route path="/cases" element={

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
-import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem } from '../types';
+import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem, ServicePackage } from '../types';
 import { PACKAGES, SERVICES, CASES, TEAM_MEMBERS, TESTIMONIALS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
 import RichTextEditor from './RichTextEditor';
 import ImagePicker from './ImagePicker';
@@ -11,7 +11,7 @@ interface AdminPanelProps {
   onBack: () => void;
 }
 
-type Tab = 'dashboard' | 'leads' | 'services' | 'cases' | 'reviews' | 'blog' | 'team' | 'popups' | 'settings' | 'seo' | 'media';
+type Tab = 'dashboard' | 'leads' | 'services' | 'packages' | 'cases' | 'reviews' | 'blog' | 'team' | 'popups' | 'settings' | 'seo' | 'media';
 
 interface SeoPageItem {
   key: string;
@@ -34,6 +34,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [popups, setPopups] = useState<Popup[]>([]);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [servicesData, setServicesData] = useState<ServiceItem[]>([]);
+  const [packagesData, setPackagesData] = useState<ServicePackage[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [settings, setSettings] = useState<SiteSettings>({ headerCode: '', footerCode: '', seo: {}, socials: {} });
 
@@ -47,6 +48,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const [editingPopup, setEditingPopup] = useState<Popup | null>(null);
   const [editingPost, setEditingPost] = useState<BlogPost | null>(null);
   const [editingService, setEditingService] = useState<ServiceItem | null>(null);
+  const [editingPackage, setEditingPackage] = useState<ServicePackage | null>(null);
 
   // Category editing
   const [newCategory, setNewCategory] = useState('');
@@ -69,7 +71,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-        const [l, c, r, t, p, b, cat, s, srv, sf] = await Promise.all([
+        const [l, c, r, t, p, b, cat, s, srv, sf, pkgs] = await Promise.all([
             dataManager.getLeads(),
             dataManager.getCases(),
             dataManager.getTestimonials(),
@@ -79,7 +81,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             dataManager.getCategories(),
             dataManager.getSettings(),
             dataManager.getServices(),
-            dataManager.getSeoFiles()
+            dataManager.getSeoFiles(),
+            dataManager.getPackages()
         ]);
         setLeads(l);
         setCases(c);
@@ -89,6 +92,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         setBlogPosts(b);
         setCategories(cat);
         setServicesData(srv);
+        setPackagesData(pkgs);
         setSeoFiles(sf);
         // Ensure settings structure
         setSettings({ 
@@ -98,19 +102,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         });
     } catch (e) {
         console.error(e);
-        // Do not alert constantly if offline, let dataManager fallback
     } finally {
         setLoading(false);
     }
   };
 
   const handleSyncData = async () => {
-      if(!confirm('Это действие загрузит стандартные данные (Кейсы, Услуги, Блог) в базу данных. Если в базе уже есть записи с такими же ID, они будут обновлены. Продолжить?')) return;
+      if(!confirm('Это действие загрузит стандартные данные (Кейсы, Услуги, Пакеты, Блог) в базу данных. Если в базе уже есть записи с такими же ID, они будут обновлены. Продолжить?')) return;
       
       setSyncing(true);
       try {
           for(const s of SERVICES) await dataManager.saveService(s);
           for(const c of CASES) await dataManager.saveCase(c);
+          for(const p of PACKAGES) await dataManager.savePackage(p);
           for(const t of TEAM_MEMBERS) await dataManager.saveTeamMember(t);
           for(const r of TESTIMONIALS) await dataManager.saveTestimonial(r);
           for(const b of BLOG_POSTS) await dataManager.saveBlogPost(b);
@@ -170,8 +174,67 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
               setServicesData(await dataManager.getServices());
               alert('Услуга успешно сохранена');
           } catch (err) {
-              alert('Ошибка сохранения услуги. Проверьте соединение с БД.');
+              alert('Ошибка сохранения услуги.');
           }
+      }
+  };
+
+  const handleSavePackage = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (editingPackage) {
+          try {
+              await dataManager.savePackage(editingPackage);
+              setEditingPackage(null);
+              setPackagesData(await dataManager.getPackages());
+              alert('Пакет успешно сохранен');
+          } catch (err) {
+              alert('Ошибка сохранения пакета.');
+          }
+      }
+  };
+
+  const handleCreatePackage = () => {
+      setEditingPackage({
+          id: Date.now().toString(),
+          title: 'Новый пакет',
+          subtitle: '',
+          price: '',
+          description: '',
+          features: [],
+          isPopular: false,
+          fullDescription: '',
+          timeline: '',
+          benefits: [],
+          detailedFeatures: [],
+          orderIndex: packagesData.length
+      } as any);
+  };
+
+  const handleDeletePackage = async (e: React.MouseEvent, id: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (confirm('Вы уверены, что хотите удалить этот пакет?')) {
+          await dataManager.deletePackage(id);
+          setPackagesData(await dataManager.getPackages());
+      }
+  };
+
+  const movePackage = async (index: number, direction: -1 | 1) => {
+      const newPkgs = [...packagesData];
+      if (direction === -1 && index > 0) {
+          [newPkgs[index], newPkgs[index - 1]] = [newPkgs[index - 1], newPkgs[index]];
+      } else if (direction === 1 && index < newPkgs.length - 1) {
+          [newPkgs[index], newPkgs[index + 1]] = [newPkgs[index + 1], newPkgs[index]];
+      } else {
+          return;
+      }
+      
+      const reindexed = newPkgs.map((p, i) => ({ ...p, orderIndex: i }));
+      setPackagesData(reindexed as any);
+      try {
+        await Promise.all(reindexed.map(p => dataManager.savePackage(p as any)));
+      } catch (err) {
+        alert("Ошибка сохранения порядка");
       }
   };
 
@@ -192,7 +255,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   const handleDeleteService = async (e: React.MouseEvent, id: string) => {
       e.preventDefault();
       e.stopPropagation();
-      if (confirm('Вы уверены, что хотите удалить эту услугу? Это действие нельзя отменить.')) {
+      if (confirm('Вы уверены, что хотите удалить эту услугу?')) {
           await dataManager.deleteService(id);
           setServicesData(await dataManager.getServices());
       }
@@ -214,7 +277,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       try {
         await Promise.all(reindexed.map(s => dataManager.saveService(s)));
       } catch (err) {
-        console.error("Failed to save order", err);
         alert("Ошибка сохранения порядка сортировки");
       }
   };
@@ -342,79 +404,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       }
   };
 
-  // Service Helpers
-  const addServiceBenefit = () => {
-    if (editingService) {
-        setEditingService({
-            ...editingService,
-            benefits: [...editingService.benefits, { title: 'Заголовок', desc: 'Описание' }]
-        });
-    }
-  };
-
-  const removeServiceBenefit = (idx: number) => {
-     if(editingService) {
-         const nb = [...editingService.benefits];
-         nb.splice(idx, 1);
-         setEditingService({...editingService, benefits: nb});
-     }
-  };
-
-  const updateServiceBenefit = (idx: number, field: 'title' | 'desc', val: string) => {
-      if(editingService) {
-          const nb = [...editingService.benefits];
-          nb[idx][field] = val;
-          setEditingService({...editingService, benefits: nb});
-      }
-  };
-
-  const addServiceFeature = () => {
-      if (editingService) {
-          setEditingService({...editingService, features: [...editingService.features, '']});
-      }
-  };
-
-  const updateServiceFeature = (idx: number, val: string) => {
-      if (editingService) {
-          const nf = [...editingService.features];
-          nf[idx] = val;
-          setEditingService({...editingService, features: nf});
-      }
-  };
-
-  const removeServiceFeature = (idx: number) => {
-    if(editingService) {
-        const nf = [...editingService.features];
-        nf.splice(idx, 1);
-        setEditingService({...editingService, features: nf});
-    }
-  };
-
-  const addServiceProcess = () => {
-      if (editingService) {
-          setEditingService({
-              ...editingService,
-              process: [...editingService.process, { step: 'Этап', desc: 'Описание', details: '', exampleImage: '' }]
-          });
-      }
-  };
-  
-  const updateServiceProcess = (idx: number, field: string, val: string) => {
-      if (editingService) {
-          const np = [...editingService.process];
-          (np[idx] as any)[field] = val;
-          setEditingService({...editingService, process: np});
-      }
-  };
-
-  const removeServiceProcess = (idx: number) => {
-      if(editingService) {
-          const np = [...editingService.process];
-          np.splice(idx, 1);
-          setEditingService({...editingService, process: np});
-      }
-  };
-
   // SEO Helpers
   const handleSeoChange = (pageKey: string, field: 'title' | 'description' | 'keywords' | 'ogImage', value: string) => {
     setSettings(prev => ({
@@ -454,7 +443,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
       pages.push({ key: `service:${s.id}`, label: `Услуга: ${s.title}`, group: 'Услуги' });
     });
 
-    PACKAGES.forEach(p => {
+    packagesData.forEach(p => {
       pages.push({ key: `package:${p.id}`, label: `Пакет: ${p.title}`, group: 'Пакеты' });
     });
 
@@ -530,6 +519,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           <TabButton id="dashboard" label="Сводка" icon={LayoutDashboard} />
           <TabButton id="leads" label="Заявки" icon={MessageSquare} />
           <TabButton id="services" label="Услуги" icon={Target} />
+          <TabButton id="packages" label="Пакеты" icon={Package} />
           <TabButton id="blog" label="Блог" icon={FileText} />
           <TabButton id="cases" label="Кейсы" icon={Briefcase} />
           <TabButton id="reviews" label="Отзывы" icon={Users} />
@@ -576,7 +566,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                         </div>
                         <p className="text-slate-600 mb-4">
                             Если вы только подключили БД, она может быть пустой. 
-                            Нажмите кнопку ниже, чтобы загрузить в неё стандартные данные (Услуги, Кейсы, Блог и т.д.) из кода сайта.
+                            Нажмите кнопку ниже, чтобы загрузить в неё стандартные данные (Услуги, Пакеты, Кейсы, Блог) из кода сайта.
                             Это решит проблему "исчезновения" контента при первом сохранении.
                         </p>
                         <button 
@@ -588,6 +578,165 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             {syncing ? 'Синхронизация...' : 'Загрузить демо-данные в БД'}
                         </button>
                     </div>
+                </div>
+            )}
+
+            {/* --- PACKAGES --- */}
+            {activeTab === 'packages' && (
+                <div>
+                    {!editingPackage ? (
+                        <>
+                        <button 
+                            type="button"
+                            onClick={handleCreatePackage}
+                            className="flex items-center gap-2 px-4 py-2 bg-brand-yellow text-brand-dark font-bold rounded-lg hover:bg-brand-orange mb-6"
+                        >
+                            <Plus size={18} /> Добавить пакет
+                        </button>
+                        <div className="grid gap-4">
+                            {packagesData.map((p, index) => (
+                                <div key={p.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex flex-col gap-1">
+                                            <button onClick={() => movePackage(index, -1)} disabled={index === 0} className="p-1 text-slate-400 hover:text-brand-orange disabled:opacity-30"><ChevronUp size={20} /></button>
+                                            <button onClick={() => movePackage(index, 1)} disabled={index === packagesData.length - 1} className="p-1 text-slate-400 hover:text-brand-orange disabled:opacity-30"><ChevronDown size={20} /></button>
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                                                {p.title} 
+                                                {p.isPopular && <span className="text-[10px] bg-brand-orange text-white px-1.5 py-0.5 rounded">HIT</span>}
+                                            </h4>
+                                            <p className="text-sm text-slate-500">{p.price} | {p.subtitle}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setEditingPackage(p)} className="px-4 py-2 bg-blue-100 text-blue-600 rounded flex items-center gap-2"><Settings size={16}/> Ред.</button>
+                                        <button onClick={(e) => handleDeletePackage(e, p.id)} className="px-4 py-2 bg-red-100 text-red-600 rounded"><Trash2 size={16}/></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        </>
+                    ) : (
+                        <form onSubmit={handleSavePackage} className="space-y-6">
+                             <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-bold">Редактирование пакета: {editingPackage.title}</h3>
+                                <button type="button" onClick={() => setEditingPackage(null)} className="text-slate-500 hover:text-slate-700 p-2"><X /></button>
+                             </div>
+
+                             <div className="grid md:grid-cols-2 gap-6">
+                                 <div>
+                                     <label className="block text-sm font-bold text-slate-700 mb-1">Название пакета</label>
+                                     <input className="w-full p-2 border rounded" value={editingPackage.title} onChange={e => setEditingPackage({...editingPackage, title: e.target.value})} required />
+                                 </div>
+                                 <div>
+                                     <label className="block text-sm font-bold text-slate-700 mb-1">Подзаголовок</label>
+                                     <input className="w-full p-2 border rounded" value={editingPackage.subtitle} onChange={e => setEditingPackage({...editingPackage, subtitle: e.target.value})} />
+                                 </div>
+                                 <div>
+                                     <label className="block text-sm font-bold text-slate-700 mb-1">Цена</label>
+                                     <input className="w-full p-2 border rounded" value={editingPackage.price} onChange={e => setEditingPackage({...editingPackage, price: e.target.value})} />
+                                 </div>
+                                 <div>
+                                     <label className="block text-sm font-bold text-slate-700 mb-1">Срок реализации</label>
+                                     <input className="w-full p-2 border rounded" value={editingPackage.timeline} onChange={e => setEditingPackage({...editingPackage, timeline: e.target.value})} />
+                                 </div>
+                             </div>
+
+                             <div className="flex items-center gap-2">
+                                <input type="checkbox" id="isPopular" checked={editingPackage.isPopular} onChange={e => setEditingPackage({...editingPackage, isPopular: e.target.checked})} className="w-5 h-5 accent-brand-orange" />
+                                <label htmlFor="isPopular" className="font-bold cursor-pointer">Популярный пакет (Хит продаж)</label>
+                             </div>
+
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Краткое описание (для карточки)</label>
+                                <textarea className="w-full p-2 border rounded h-20" value={editingPackage.description} onChange={e => setEditingPackage({...editingPackage, description: e.target.value})} required />
+                             </div>
+
+                             <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Полное описание (на странице пакета)</label>
+                                <textarea className="w-full p-2 border rounded h-40" value={editingPackage.fullDescription} onChange={e => setEditingPackage({...editingPackage, fullDescription: e.target.value})} required />
+                             </div>
+
+                             {/* Features (strings) */}
+                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                 <h4 className="font-bold mb-2">Краткие фишки (список в карточке)</h4>
+                                 {(editingPackage.features || []).map((feat, idx) => (
+                                     <div key={idx} className="flex gap-2 mb-2">
+                                         <input className="w-full p-2 border rounded" value={feat} onChange={e => {
+                                             const nf = [...editingPackage.features];
+                                             nf[idx] = e.target.value;
+                                             setEditingPackage({...editingPackage, features: nf});
+                                         }} />
+                                         <button type="button" onClick={() => {
+                                             const nf = [...editingPackage.features];
+                                             nf.splice(idx, 1);
+                                             setEditingPackage({...editingPackage, features: nf});
+                                         }} className="text-red-500 p-2"><X size={16} /></button>
+                                     </div>
+                                 ))}
+                                 <button type="button" onClick={() => setEditingPackage({...editingPackage, features: [...(editingPackage.features || []), '']})} className="text-sm text-blue-600 font-bold">+ Добавить фишку</button>
+                             </div>
+
+                             {/* Detailed Features (objects) */}
+                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                 <h4 className="font-bold mb-2">Детальные функции (на странице пакета)</h4>
+                                 {(editingPackage.detailedFeatures || []).map((df, idx) => (
+                                     <div key={idx} className="bg-white p-4 rounded border border-slate-200 mb-4">
+                                         <div className="flex justify-between items-center mb-2">
+                                            <span className="font-bold text-slate-400">Блок {idx + 1}</span>
+                                            <button type="button" onClick={() => {
+                                                const ndf = [...editingPackage.detailedFeatures];
+                                                ndf.splice(idx, 1);
+                                                setEditingPackage({...editingPackage, detailedFeatures: ndf});
+                                            }} className="text-red-500"><Trash2 size={16} /></button>
+                                         </div>
+                                         <input placeholder="Заголовок блока" className="w-full p-2 border rounded mb-2" value={df.title} onChange={e => {
+                                             const ndf = [...editingPackage.detailedFeatures];
+                                             ndf[idx].title = e.target.value;
+                                             setEditingPackage({...editingPackage, detailedFeatures: ndf});
+                                         }} />
+                                         <textarea placeholder="Описание" className="w-full p-2 border rounded h-20" value={df.description} onChange={e => {
+                                             const ndf = [...editingPackage.detailedFeatures];
+                                             ndf[idx].description = e.target.value;
+                                             setEditingPackage({...editingPackage, detailedFeatures: ndf});
+                                         }} />
+                                     </div>
+                                 ))}
+                                 <button type="button" onClick={() => setEditingPackage({...editingPackage, detailedFeatures: [...(editingPackage.detailedFeatures || []), {title: '', description: ''}]})} className="text-sm text-blue-600 font-bold">+ Добавить детальную функцию</button>
+                             </div>
+
+                             {/* Benefits (objects) */}
+                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                 <h4 className="font-bold mb-2">Преимущества (иконки Star)</h4>
+                                 {(editingPackage.benefits || []).map((ben, idx) => (
+                                     <div key={idx} className="flex gap-2 mb-2 items-start">
+                                         <input placeholder="Заголовок" className="w-1/3 p-2 border rounded" value={ben.title} onChange={e => {
+                                             const nb = [...editingPackage.benefits];
+                                             nb[idx].title = e.target.value;
+                                             setEditingPackage({...editingPackage, benefits: nb});
+                                         }} />
+                                         <textarea placeholder="Описание" className="w-2/3 p-2 border rounded h-10" value={ben.desc} onChange={e => {
+                                             const nb = [...editingPackage.benefits];
+                                             nb[idx].desc = e.target.value;
+                                             setEditingPackage({...editingPackage, benefits: nb});
+                                         }} />
+                                         <button type="button" onClick={() => {
+                                             const nb = [...editingPackage.benefits];
+                                             nb.splice(idx, 1);
+                                             setEditingPackage({...editingPackage, benefits: nb});
+                                         }} className="text-red-500 p-2 mt-2"><X size={16} /></button>
+                                     </div>
+                                 ))}
+                                 <button type="button" onClick={() => setEditingPackage({...editingPackage, benefits: [...(editingPackage.benefits || []), {title: '', desc: ''}]})} className="text-sm text-blue-600 font-bold">+ Добавить преимущество</button>
+                             </div>
+
+                             <div className="flex gap-4 pt-4 border-t">
+                                <button type="submit" className="px-6 py-3 bg-green-600 text-white rounded font-bold hover:bg-green-500 flex items-center gap-2"><Save size={18} /> Сохранить изменения</button>
+                                <button type="button" onClick={() => setEditingPackage(null)} className="px-6 py-3 bg-slate-200 text-slate-700 rounded font-bold hover:bg-slate-300">Отмена</button>
+                             </div>
+                        </form>
+                    )}
                 </div>
             )}
 
@@ -684,7 +833,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             <h3 className="font-bold">Кейс</h3>
                             <input className="w-full p-2 border rounded" placeholder="Название" value={editingCase.title} onChange={e => setEditingCase({...editingCase, title: e.target.value})} />
                             
-                            {/* Service Selection Dropdown */}
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Привязка к услуге</label>
                                 <select 
@@ -876,7 +1024,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                         </>
                     ) : (
                         <form onSubmit={handleSaveService} className="space-y-6">
-                             {/* ... Service editing form ... */}
                              <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-2xl font-bold">Редактирование услуги: {editingService.title}</h3>
                                 <button type="button" onClick={() => setEditingService(null)} className="text-slate-500 hover:text-slate-700 p-2"><X /></button>
@@ -914,32 +1061,49 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                 <textarea className="w-full p-2 border rounded h-40 font-light" value={editingService.fullDescription} onChange={e => setEditingService({...editingService, fullDescription: e.target.value})} required />
                              </div>
 
-                             {/* Features List */}
                              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                  <h4 className="font-bold mb-2">Что входит в услугу (Список)</h4>
                                  {editingService.features.map((feat, idx) => (
                                      <div key={idx} className="flex gap-2 mb-2">
-                                         <input className="w-full p-2 border rounded" value={feat} onChange={e => updateServiceFeature(idx, e.target.value)} />
-                                         <button type="button" onClick={() => removeServiceFeature(idx)} className="text-red-500 p-2"><X size={16} /></button>
+                                         <input className="w-full p-2 border rounded" value={feat} onChange={e => {
+                                             const nf = [...editingService.features];
+                                             nf[idx] = e.target.value;
+                                             setEditingService({...editingService, features: nf});
+                                         }} />
+                                         <button type="button" onClick={() => {
+                                             const nf = [...editingService.features];
+                                             nf.splice(idx, 1);
+                                             setEditingService({...editingService, features: nf});
+                                         }} className="text-red-500 p-2"><X size={16} /></button>
                                      </div>
                                  ))}
-                                 <button type="button" onClick={addServiceFeature} className="text-sm text-blue-600 font-bold">+ Добавить пункт</button>
+                                 <button type="button" onClick={() => setEditingService({...editingService, features: [...editingService.features, '']})} className="text-sm text-blue-600 font-bold">+ Добавить пункт</button>
                              </div>
 
-                             {/* Benefits List */}
                              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                  <h4 className="font-bold mb-2">Преимущества (Блоки)</h4>
                                  {editingService.benefits.map((ben, idx) => (
                                      <div key={idx} className="flex gap-2 mb-2 items-start">
-                                         <input placeholder="Заголовок" className="w-1/3 p-2 border rounded" value={ben.title} onChange={e => updateServiceBenefit(idx, 'title', e.target.value)} />
-                                         <textarea placeholder="Описание" className="w-2/3 p-2 border rounded h-10" value={ben.desc} onChange={e => updateServiceBenefit(idx, 'desc', e.target.value)} />
-                                         <button type="button" onClick={() => removeServiceBenefit(idx)} className="text-red-500 p-2 mt-2"><X size={16} /></button>
+                                         <input placeholder="Заголовок" className="w-1/3 p-2 border rounded" value={ben.title} onChange={e => {
+                                             const nb = [...editingService.benefits];
+                                             nb[idx].title = e.target.value;
+                                             setEditingService({...editingService, benefits: nb});
+                                         }} />
+                                         <textarea placeholder="Описание" className="w-2/3 p-2 border rounded h-10" value={ben.desc} onChange={e => {
+                                             const nb = [...editingService.benefits];
+                                             nb[idx].desc = e.target.value;
+                                             setEditingService({...editingService, benefits: nb});
+                                         }} />
+                                         <button type="button" onClick={() => {
+                                             const nb = [...editingService.benefits];
+                                             nb.splice(idx, 1);
+                                             setEditingService({...editingService, benefits: nb});
+                                         }} className="text-red-500 p-2 mt-2"><X size={16} /></button>
                                      </div>
                                  ))}
-                                 <button type="button" onClick={addServiceBenefit} className="text-sm text-blue-600 font-bold">+ Добавить преимущество</button>
+                                 <button type="button" onClick={() => setEditingService({...editingService, benefits: [...editingService.benefits, { title: 'Заголовок', desc: 'Описание' }]})} className="text-sm text-blue-600 font-bold">+ Добавить преимущество</button>
                              </div>
 
-                             {/* Process Steps */}
                              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
                                  <h4 className="font-bold mb-2">Этапы работы</h4>
                                  <div className="space-y-4">
@@ -947,22 +1111,41 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                         <div key={idx} className="bg-white p-4 rounded border border-slate-200">
                                             <div className="flex justify-between mb-2">
                                                 <span className="font-bold text-slate-400">Этап {idx + 1}</span>
-                                                <button type="button" onClick={() => removeServiceProcess(idx)} className="text-red-500"><Trash2 size={16} /></button>
+                                                <button type="button" onClick={() => {
+                                                    const np = [...editingService.process];
+                                                    np.splice(idx, 1);
+                                                    setEditingService({...editingService, process: np});
+                                                }} className="text-red-500"><Trash2 size={16} /></button>
                                             </div>
                                             <div className="grid md:grid-cols-2 gap-4 mb-2">
-                                                <input placeholder="Название этапа" className="w-full p-2 border rounded" value={step.step} onChange={e => updateServiceProcess(idx, 'step', e.target.value)} />
-                                                <input placeholder="Краткое описание" className="w-full p-2 border rounded" value={step.desc} onChange={e => updateServiceProcess(idx, 'desc', e.target.value)} />
+                                                <input placeholder="Название этапа" className="w-full p-2 border rounded" value={step.step} onChange={e => {
+                                                    const np = [...editingService.process];
+                                                    np[idx].step = e.target.value;
+                                                    setEditingService({...editingService, process: np});
+                                                }} />
+                                                <input placeholder="Краткое описание" className="w-full p-2 border rounded" value={step.desc} onChange={e => {
+                                                    const np = [...editingService.process];
+                                                    np[idx].desc = e.target.value;
+                                                    setEditingService({...editingService, process: np});
+                                                }} />
                                             </div>
                                             <div className="mb-2">
-                                                <label className="text-xs text-slate-500">Подробности (Rich Text)</label>
-                                                {/* Simple textarea for details inside repeater to avoid complex nesting issues with RTE for now, or just text area */}
-                                                <textarea className="w-full p-2 border rounded h-24" value={step.details} onChange={e => updateServiceProcess(idx, 'details', e.target.value)} />
+                                                <label className="text-xs text-slate-500">Подробности</label>
+                                                <textarea className="w-full p-2 border rounded h-24" value={step.details} onChange={e => {
+                                                    const np = [...editingService.process];
+                                                    np[idx].details = e.target.value;
+                                                    setEditingService({...editingService, process: np});
+                                                }} />
                                             </div>
-                                            <ImagePicker label="Пример реализации (картинка)" value={step.exampleImage || ''} onChange={url => updateServiceProcess(idx, 'exampleImage', url)} />
+                                            <ImagePicker label="Пример реализации (картинка)" value={step.exampleImage || ''} onChange={url => {
+                                                const np = [...editingService.process];
+                                                np[idx].exampleImage = url;
+                                                setEditingService({...editingService, process: np});
+                                            }} />
                                         </div>
                                     ))}
                                  </div>
-                                 <button type="button" onClick={addServiceProcess} className="mt-4 text-sm text-blue-600 font-bold">+ Добавить этап</button>
+                                 <button type="button" onClick={() => setEditingService({...editingService, process: [...editingService.process, { step: 'Этап', desc: 'Описание', details: '', exampleImage: '' }]})} className="mt-4 text-sm text-blue-600 font-bold">+ Добавить этап</button>
                              </div>
 
                              <div className="flex gap-4 pt-4 border-t">
@@ -978,33 +1161,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 <div>
                     {!editingPost ? (
                         <>
-                        {/* Category Management */}
                         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
                             <h3 className="font-bold text-xl mb-4 text-slate-900">Рубрики</h3>
                             <div className="flex flex-wrap gap-3 mb-4">
                                 {categories.filter(c => c !== 'Все').map(cat => (
                                     <span key={cat} className="px-3 py-1 bg-slate-100 rounded-full flex items-center gap-2 border border-slate-200 text-sm font-medium text-slate-700">
                                         {cat}
-                                        <button 
-                                            onClick={(e) => handleDeleteCategory(e, cat)} 
-                                            className="text-slate-400 hover:text-red-500 p-0.5 rounded-full hover:bg-slate-200 transition-colors"
-                                            title="Удалить рубрику"
-                                        >
-                                            <X size={14} />
-                                        </button>
+                                        <button onClick={(e) => handleDeleteCategory(e, cat)} className="text-slate-400 hover:text-red-500 p-0.5 rounded-full hover:bg-slate-200 transition-colors"><X size={14} /></button>
                                     </span>
                                 ))}
                             </div>
                             <div className="flex gap-2">
-                                <input 
-                                    className="p-2 border rounded border-slate-300 text-sm focus:border-brand-orange outline-none" 
-                                    placeholder="Новая рубрика" 
-                                    value={newCategory}
-                                    onChange={e => setNewCategory(e.target.value)}
-                                />
-                                <button onClick={handleAddCategory} className="px-4 py-2 bg-slate-900 text-white rounded font-bold hover:bg-slate-700 text-sm transition-colors">
-                                    Добавить
-                                </button>
+                                <input className="p-2 border rounded border-slate-300 text-sm focus:border-brand-orange outline-none" placeholder="Новая рубрика" value={newCategory} onChange={e => setNewCategory(e.target.value)} />
+                                <button onClick={handleAddCategory} className="px-4 py-2 bg-slate-900 text-white rounded font-bold hover:bg-slate-700 text-sm transition-colors">Добавить</button>
                             </div>
                         </div>
 
@@ -1036,89 +1205,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="md:col-span-1 bg-slate-50 p-4 rounded-xl border h-fit">
                         <h3 className="font-bold mb-4">Страницы</h3>
-                        <input 
-                            placeholder="Поиск..." 
-                            className="w-full p-2 mb-4 border rounded text-sm"
-                            value={seoSearch}
-                            onChange={e => setSeoSearch(e.target.value)}
-                        />
+                        <input placeholder="Поиск..." className="w-full p-2 mb-4 border rounded text-sm" value={seoSearch} onChange={e => setSeoSearch(e.target.value)} />
                         <div className="space-y-1 max-h-[600px] overflow-y-auto">
                             {filteredSeoPages.map(p => (
-                                <button
-                                    key={p.key}
-                                    onClick={() => setSelectedSeoPage(p.key)}
-                                    className={`w-full text-left px-3 py-2 rounded text-sm truncate ${selectedSeoPage === p.key ? 'bg-brand-orange text-white' : 'hover:bg-slate-200'}`}
-                                >
-                                    {p.label}
-                                </button>
+                                <button key={p.key} onClick={() => setSelectedSeoPage(p.key)} className={`w-full text-left px-3 py-2 rounded text-sm truncate ${selectedSeoPage === p.key ? 'bg-brand-orange text-white' : 'hover:bg-slate-200'}`}>{p.label}</button>
                             ))}
                         </div>
                     </div>
                     <div className="md:col-span-3 space-y-8">
-                        {/* Meta Tags Form */}
                         <form onSubmit={handleSaveSettings} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
                             <h3 className="font-bold text-xl mb-4">SEO: {filteredSeoPages.find(p => p.key === selectedSeoPage)?.label || selectedSeoPage}</h3>
-                            
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Meta Title</label>
-                                <input 
-                                    className="w-full p-2 border rounded" 
-                                    value={settings.seo[selectedSeoPage]?.title || ''}
-                                    onChange={e => handleSeoChange(selectedSeoPage, 'title', e.target.value)}
-                                />
+                                <input className="w-full p-2 border rounded" value={settings.seo[selectedSeoPage]?.title || ''} onChange={e => handleSeoChange(selectedSeoPage, 'title', e.target.value)} />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Meta Description</label>
-                                <textarea 
-                                    className="w-full p-2 border rounded h-24" 
-                                    value={settings.seo[selectedSeoPage]?.description || ''}
-                                    onChange={e => handleSeoChange(selectedSeoPage, 'description', e.target.value)}
-                                />
+                                <textarea className="w-full p-2 border rounded h-24" value={settings.seo[selectedSeoPage]?.description || ''} onChange={e => handleSeoChange(selectedSeoPage, 'description', e.target.value)} />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-1">Keywords</label>
-                                <input 
-                                    className="w-full p-2 border rounded" 
-                                    value={settings.seo[selectedSeoPage]?.keywords || ''}
-                                    onChange={e => handleSeoChange(selectedSeoPage, 'keywords', e.target.value)}
-                                />
+                                <input className="w-full p-2 border rounded" value={settings.seo[selectedSeoPage]?.keywords || ''} onChange={e => handleSeoChange(selectedSeoPage, 'keywords', e.target.value)} />
                             </div>
-                            
-                            <ImagePicker 
-                                label="OG Image (для соцсетей)" 
-                                value={settings.seo[selectedSeoPage]?.ogImage || ''}
-                                onChange={url => handleSeoChange(selectedSeoPage, 'ogImage', url)}
-                            />
-
+                            <ImagePicker label="OG Image (для соцсетей)" value={settings.seo[selectedSeoPage]?.ogImage || ''} onChange={url => handleSeoChange(selectedSeoPage, 'ogImage', url)} />
                             <div className="pt-4 flex justify-end">
                                 <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold flex items-center gap-2"><Save size={18}/> Сохранить мета-теги</button>
                             </div>
                         </form>
-
-                        {/* Files Editor */}
                         <form onSubmit={handleSaveSeoFiles} className="bg-white p-6 rounded-xl border shadow-sm space-y-6">
                             <h3 className="font-bold text-xl flex items-center gap-2 border-b pb-2"><FileCode size={20}/> Технические файлы</h3>
-                            
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">robots.txt</label>
-                                <textarea 
-                                    className="w-full p-4 border rounded-lg h-48 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-brand-orange focus:outline-none" 
-                                    value={seoFiles.robots_txt}
-                                    onChange={e => setSeoFiles({...seoFiles, robots_txt: e.target.value})}
-                                    placeholder="User-agent: *&#10;Allow: /"
-                                />
+                                <textarea className="w-full p-4 border rounded-lg h-48 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-brand-orange focus:outline-none" value={seoFiles.robots_txt} onChange={e => setSeoFiles({...seoFiles, robots_txt: e.target.value})} placeholder="User-agent: *&#10;Allow: /" />
                             </div>
-
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">sitemap.xml</label>
-                                <textarea 
-                                    className="w-full p-4 border rounded-lg h-64 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-brand-orange focus:outline-none" 
-                                    value={seoFiles.sitemap_xml}
-                                    onChange={e => setSeoFiles({...seoFiles, sitemap_xml: e.target.value})}
-                                    placeholder={`<?xml version="1.0" encoding="UTF-8"?>...`}
-                                />
+                                <textarea className="w-full p-4 border rounded-lg h-64 font-mono text-sm bg-slate-50 focus:ring-2 focus:ring-brand-orange focus:outline-none" value={seoFiles.sitemap_xml} onChange={e => setSeoFiles({...seoFiles, sitemap_xml: e.target.value})} placeholder={`<?xml version="1.0" encoding="UTF-8"?>...`} />
                             </div>
-
                             <div className="pt-2 flex justify-end">
                                 <button type="submit" className="bg-slate-900 text-white px-6 py-2 rounded font-bold flex items-center gap-2 hover:bg-slate-700"><Save size={18}/> Сохранить файлы</button>
                             </div>
@@ -1129,139 +1252,35 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
 
             {activeTab === 'settings' && (
                 <form onSubmit={handleSaveSettings} className="max-w-4xl space-y-8 pb-20">
-                    {/* Settings Form Content */}
                     <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
                         <h3 className="font-bold text-xl border-b pb-2">Основные</h3>
                         <ImagePicker label="Favicon URL (SVG/ICO)" value={settings.favicon || ''} onChange={url => setSettings({...settings, favicon: url})} />
                         <ImagePicker label="Логотип (URL)" value={settings.logo || ''} onChange={url => setSettings({...settings, logo: url})} />
                     </div>
-                    
-                    {/* Mail Settings */}
                     <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
-                        <h3 className="font-bold text-xl border-b pb-2 flex items-center gap-2">
-                           <Mail size={20} />
-                           Уведомления на почту (SMTP)
-                        </h3>
-                        <div className="p-4 bg-yellow-50 text-yellow-800 text-sm rounded-lg mb-4 flex items-start gap-2">
-                            <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                            <p>Введите данные SMTP вашего почтового провайдера (например, Yandex, Google). Для Google нужен "App Password".</p>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 mb-4">
-                            <input 
-                                type="checkbox" 
-                                id="mailEnabled"
-                                checked={settings.mailConfig?.enabled || false}
-                                onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), enabled: e.target.checked}})}
-                                className="w-5 h-5 accent-brand-orange"
-                            />
-                            <label htmlFor="mailEnabled" className="font-bold cursor-pointer">Включить отправку уведомлений</label>
-                        </div>
-
+                        <h3 className="font-bold text-xl border-b pb-2 flex items-center gap-2"><Mail size={20} /> Уведомления на почту (SMTP)</h3>
+                        <div className="p-4 bg-yellow-50 text-yellow-800 text-sm rounded-lg mb-4 flex items-start gap-2"><AlertCircle size={16} className="shrink-0 mt-0.5" /><p>Введите данные SMTP вашего почтового провайдера.</p></div>
+                        <div className="flex items-center gap-2 mb-4"><input type="checkbox" id="mailEnabled" checked={settings.mailConfig?.enabled || false} onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), enabled: e.target.checked}})} className="w-5 h-5 accent-brand-orange" /><label htmlFor="mailEnabled" className="font-bold cursor-pointer">Включить отправку уведомлений</label></div>
                         <div className="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold mb-1">SMTP Хост (Host)</label>
-                                <input 
-                                    className="w-full p-2 border rounded" 
-                                    placeholder="smtp.yandex.ru"
-                                    value={settings.mailConfig?.host || ''} 
-                                    onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), host: e.target.value}})} 
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-1">SMTP Порт</label>
-                                <input 
-                                    className="w-full p-2 border rounded" 
-                                    placeholder="465"
-                                    value={settings.mailConfig?.port || ''} 
-                                    onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), port: e.target.value}})} 
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-1">Пользователь (Email отправителя)</label>
-                                <input 
-                                    className="w-full p-2 border rounded" 
-                                    placeholder="bot@valstand.ru"
-                                    value={settings.mailConfig?.user || ''} 
-                                    onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), user: e.target.value}})} 
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-1">Пароль (SMTP Password)</label>
-                                <input 
-                                    type="password"
-                                    className="w-full p-2 border rounded" 
-                                    value={settings.mailConfig?.pass || ''} 
-                                    onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), pass: e.target.value}})} 
-                                />
-                            </div>
+                            <div><label className="block text-sm font-bold mb-1">SMTP Хост</label><input className="w-full p-2 border rounded" placeholder="smtp.yandex.ru" value={settings.mailConfig?.host || ''} onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), host: e.target.value}})} /></div>
+                            <div><label className="block text-sm font-bold mb-1">SMTP Порт</label><input className="w-full p-2 border rounded" placeholder="465" value={settings.mailConfig?.port || ''} onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), port: e.target.value}})} /></div>
+                            <div><label className="block text-sm font-bold mb-1">Пользователь</label><input className="w-full p-2 border rounded" placeholder="bot@valstand.ru" value={settings.mailConfig?.user || ''} onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), user: e.target.value}})} /></div>
+                            <div><label className="block text-sm font-bold mb-1">Пароль</label><input type="password" className="w-full p-2 border rounded" value={settings.mailConfig?.pass || ''} onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), pass: e.target.value}})} /></div>
                         </div>
-                        
-                        <div className="pt-2 border-t mt-2">
-                            <label className="block text-sm font-bold mb-1">Куда отправлять уведомления (Receiver Email)</label>
-                            <input 
-                                className="w-full p-2 border rounded" 
-                                placeholder="admin@valstand.ru"
-                                value={settings.mailConfig?.receiverEmail || ''} 
-                                onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), receiverEmail: e.target.value}})} 
-                            />
-                        </div>
+                        <div className="pt-2 border-t mt-2"><label className="block text-sm font-bold mb-1">Куда отправлять уведомления</label><input className="w-full p-2 border rounded" placeholder="admin@valstand.ru" value={settings.mailConfig?.receiverEmail || ''} onChange={e => setSettings({...settings, mailConfig: {...(settings.mailConfig || {} as any), receiverEmail: e.target.value}})} /></div>
                     </div>
-
-                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
-                        <h3 className="font-bold text-xl border-b pb-2">Соцсети</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-bold mb-1">Telegram</label>
-                                <input className="w-full p-2 border rounded" value={settings.socials?.telegram || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, telegram: e.target.value}})} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-1">VK</label>
-                                <input className="w-full p-2 border rounded" value={settings.socials?.vk || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vk: e.target.value}})} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-1">VC.ru</label>
-                                <input className="w-full p-2 border rounded" value={settings.socials?.vc || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vc: e.target.value}})} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold mb-1">TJ</label>
-                                <input className="w-full p-2 border rounded" value={settings.socials?.tj || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, tj: e.target.value}})} />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
-                        <h3 className="font-bold text-xl border-b pb-2">Вставка кода (Метрика/Пиксели)</h3>
-                        <div>
-                            <label className="block text-sm font-bold mb-1">Внутри &lt;HEAD&gt;</label>
-                            <textarea className="w-full p-2 border rounded h-32 font-mono text-sm bg-slate-50" value={settings.headerCode || ''} onChange={e => setSettings({...settings, headerCode: e.target.value})} />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold mb-1">В конце &lt;BODY&gt;</label>
-                            <textarea className="w-full p-2 border rounded h-32 font-mono text-sm bg-slate-50" value={settings.footerCode || ''} onChange={e => setSettings({...settings, footerCode: e.target.value})} />
-                        </div>
-                    </div>
-
-                    <div className="fixed bottom-6 right-6">
-                        <button type="submit" className="bg-green-600 text-white px-8 py-4 rounded-full font-bold shadow-xl hover:bg-green-500 flex items-center gap-2 transform hover:scale-105 transition-all"><Save size={20}/> Сохранить настройки</button>
-                    </div>
+                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4"><h3 className="font-bold text-xl border-b pb-2">Соцсети</h3><div className="grid md:grid-cols-2 gap-4"><div><label className="block text-sm font-bold mb-1">Telegram</label><input className="w-full p-2 border rounded" value={settings.socials?.telegram || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, telegram: e.target.value}})} /></div><div><label className="block text-sm font-bold mb-1">VK</label><input className="w-full p-2 border rounded" value={settings.socials?.vk || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vk: e.target.value}})} /></div><div><label className="block text-sm font-bold mb-1">VC.ru</label><input className="w-full p-2 border rounded" value={settings.socials?.vc || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vc: e.target.value}})} /></div><div><label className="block text-sm font-bold mb-1">TJ</label><input className="w-full p-2 border rounded" value={settings.socials?.tj || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, tj: e.target.value}})} /></div></div></div>
+                    <div className="bg-white p-6 rounded-xl border shadow-sm space-y-4"><h3 className="font-bold text-xl border-b pb-2">Вставка кода</h3><div><label className="block text-sm font-bold mb-1">Внутри &lt;HEAD&gt;</label><textarea className="w-full p-2 border rounded h-32 font-mono text-sm bg-slate-50" value={settings.headerCode || ''} onChange={e => setSettings({...settings, headerCode: e.target.value})} /></div><div><label className="block text-sm font-bold mb-1">В конце &lt;BODY&gt;</label><textarea className="w-full p-2 border rounded h-32 font-mono text-sm bg-slate-50" value={settings.footerCode || ''} onChange={e => setSettings({...settings, footerCode: e.target.value})} /></div></div>
+                    <div className="fixed bottom-6 right-6"><button type="submit" className="bg-green-600 text-white px-8 py-4 rounded-full font-bold shadow-xl hover:bg-green-500 flex items-center gap-2 transform hover:scale-105 transition-all"><Save size={20}/> Сохранить настройки</button></div>
                 </form>
             )}
-            
             </div>
         )}
-        
-        {/* RTE Image Picker Modal */}
         {showRteImagePicker && (
             <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                 <div className="bg-white rounded-2xl w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl overflow-hidden relative">
-                    <div className="p-4 border-b border-slate-200 flex justify-between items-center">
-                    <h3 className="font-bold text-lg">Выберите изображение</h3>
-                    <button type="button" onClick={() => setShowRteImagePicker(false)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} /></button>
-                    </div>
-                    <div className="flex-grow overflow-hidden p-4 bg-slate-50">
-                    <MediaLibrary selectionMode onSelect={handleRteImageSelect} />
-                    </div>
+                    <div className="p-4 border-b border-slate-200 flex justify-between items-center"><h3 className="font-bold text-lg">Выберите изображение</h3><button type="button" onClick={() => setShowRteImagePicker(false)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20} /></button></div>
+                    <div className="flex-grow overflow-hidden p-4 bg-slate-50"><MediaLibrary selectionMode onSelect={handleRteImageSelect} /></div>
                 </div>
             </div>
         )}

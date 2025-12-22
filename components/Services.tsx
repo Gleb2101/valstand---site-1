@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Target, Search, Share2, Code, ArrowRight, ArrowUpRight, Palette, PieChart, Box } from 'lucide-react';
 import Packages from './Packages';
 import ScrollReveal from './ScrollReveal';
-import { ServiceItem } from '../types';
+import { ServiceItem, ServicePackage } from '../types';
 
 const iconMap: Record<string, React.ReactNode> = {
   target: <Target size={32} />,
@@ -19,13 +18,14 @@ const DefaultIcon = <Box size={32} />;
 
 interface ServicesProps {
   services: ServiceItem[];
+  packages: ServicePackage[];
   onSelectService: (serviceId: string) => void;
   onQuickOrder: (serviceTitle: string) => void;
   isHomePreview?: boolean;
   onViewPackage?: (packageId: string) => void;
 }
 
-const Services: React.FC<ServicesProps> = ({ services, onSelectService, onQuickOrder, isHomePreview = false, onViewPackage }) => {
+const Services: React.FC<ServicesProps> = ({ services, packages, onSelectService, onQuickOrder, isHomePreview = false, onViewPackage }) => {
   return (
     <>
       <section id="services" className={`bg-slate-50 relative ${isHomePreview ? 'py-24' : 'py-12 pb-24'}`}>
@@ -84,7 +84,7 @@ const Services: React.FC<ServicesProps> = ({ services, onSelectService, onQuickO
 
       {/* Show Packages only on full Services page */}
       {!isHomePreview && (
-        <Packages onOrder={onQuickOrder} onViewDetails={onViewPackage} />
+        <Packages packages={packages} onOrder={onQuickOrder} onViewDetails={onViewPackage} />
       )}
     </>
   );

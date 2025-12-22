@@ -1,6 +1,5 @@
-
-import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, StoredImage, ServiceItem } from '../types';
-import { CASES, TESTIMONIALS, TEAM_MEMBERS, BLOG_POSTS, BLOG_CATEGORIES, SERVICES } from '../constants';
+import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, StoredImage, ServiceItem, ServicePackage } from '../types';
+import { CASES, TESTIMONIALS, TEAM_MEMBERS, BLOG_POSTS, BLOG_CATEGORIES, SERVICES, PACKAGES } from '../constants';
 
 const API_URL = '/api';
 
@@ -22,6 +21,7 @@ const DEFAULT_SEO = {
 // Cache storage
 const cache: Record<string, Promise<any> | null> = {
     services: null,
+    packages: null,
     cases: null,
     testimonials: null,
     team: null,
@@ -120,6 +120,21 @@ export const dataManager = {
   deleteService: async (id: string) => {
       await deleteData('services', id);
       invalidateCache('services');
+  },
+
+  // Packages
+  getPackages: (): Promise<ServicePackage[]> => {
+    return getCached('packages', 'packages', PACKAGES).then(items => {
+        return items.sort((a, b) => ((a as any).orderIndex || 0) - ((b as any).orderIndex || 0));
+    });
+  },
+  savePackage: async (item: ServicePackage) => {
+      await postData('packages', item);
+      invalidateCache('packages');
+  },
+  deletePackage: async (id: string) => {
+      await deleteData('packages', id);
+      invalidateCache('packages');
   },
 
   // Cases
