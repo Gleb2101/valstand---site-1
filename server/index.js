@@ -17,14 +17,6 @@ app.enable('trust proxy');
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 
-// Logging
-app.use((req, res, next) => {
-    if (!req.url.match(/\.(js|css|png|jpg|ico|svg|woff2)$/)) {
-        console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-    }
-    next();
-});
-
 const distPath = path.join(__dirname, '../dist');
 
 // --- DATABASE CONNECTION ---
@@ -42,20 +34,14 @@ const connectDB = async () => {
         connectTimeout: 10000 
     };
 
-    console.log(`[DB] Attempting connection to ${dbConfig.host} as user '${dbConfig.user}'...`);
-
     try {
         pool = mysql.createPool(dbConfig);
         const connection = await pool.getConnection();
         console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
-        
         await initTables(connection);
-        
         connection.release();
     } catch (err) {
-        console.error('❌ DATABASE CONNECTION FAILED');
-        console.error(`Error Code: ${err.code}`);
-        console.error(`Error Message: ${err.message}`);
+        console.error('❌ DATABASE CONNECTION FAILED', err.message);
         pool = null; 
     }
 };
@@ -85,274 +71,92 @@ connectDB();
 const sendEmailNotification = async (lead) => {
     if (!pool) return;
     try {
-        // Get Settings
         const [rows] = await pool.query("SELECT data FROM settings WHERE setting_key = 'global'");
         if (rows.length === 0) return;
-        
         const settings = JSON.parse(rows[0].data);
         const mailConfig = settings.mailConfig;
-
-        if (!mailConfig || !mailConfig.enabled || !mailConfig.host || !mailConfig.user || !mailConfig.pass || !mailConfig.receiverEmail) {
-            console.log("Email notifications disabled or not configured.");
-            return;
-        }
+        if (!mailConfig || !mailConfig.enabled) return;
 
         const transporter = nodemailer.createTransport({
             host: mailConfig.host,
             port: parseInt(mailConfig.port) || 465,
-            secure: parseInt(mailConfig.port) === 465, // true for 465, false for other ports
-            auth: {
-                user: mailConfig.user,
-                pass: mailConfig.pass,
-            },
+            secure: parseInt(mailConfig.port) === 465,
+            auth: { user: mailConfig.user, pass: mailConfig.pass },
         });
 
-        const mailOptions = {
+        await transporter.sendMail({
             from: `"Valstand Bot" <${mailConfig.user}>`,
             to: mailConfig.receiverEmail,
             subject: `🔥 Новая заявка: ${lead.name}`,
-            html: `
-                <h2>Новая заявка на сайте Valstand</h2>
-                <p><strong>Имя:</strong> ${lead.name}</p>
-                <p><strong>Телефон:</strong> ${lead.phone}</p>
-                <p><strong>Услуга:</strong> ${lead.service}</p>
-                <p><strong>Дата:</strong> ${lead.date}</p>
-                <br />
-                <a href="https://valstand.ru/admin">Перейти в админку</a>
-            `,
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log("Email sent: %s", info.messageId);
-
-    } catch (error) {
-        console.error("Error sending email:", error);
-    }
+            html: `<h2>Новая заявка на сайте Valstand</h2><p><strong>Имя:</strong> ${lead.name}</p><p><strong>Телефон:</strong> ${lead.phone}</p><p><strong>Услуга:</strong> ${lead.service}</p><p><strong>Дата:</strong> ${lead.date}</p><br /><a href="https://valstand.ru/admin">Перейти в админку</a>`,
+        });
+    } catch (error) { console.error("Error sending email:", error); }
 };
 
 // --- API ROUTES ---
-
 const dbCheck = (req, res, next) => {
     if (!pool) {
         if (req.method === 'GET') return res.json([]);
-        return res.status(503).json({ error: "Database unavailable (Static Mode)", success: false });
+        return res.status(503).json({ error: "Database unavailable", success: false });
     }
     next();
 };
 
-app.get('/api/status', async (req, res) => {
-    if(pool) res.json({ status: 'ok', db: 'connected' });
-    else res.json({ status: 'ok', db: 'disconnected' });
-});
-
-// Custom Route for Favicon from absolute path
-app.get('/favicon_val.svg', (req, res) => {
-    const iconPath = '/var/www/www-root/data/www/valstand.ru/favicon_val.svg';
-    try {
-        if (fs.existsSync(iconPath)) {
-            res.sendFile(iconPath);
-        } else {
-            const localPath = path.join(__dirname, '../public/favicon_val.svg');
-            res.status(404).send('Favicon not found');
-        }
-    } catch (e) {
-        console.error("Error serving favicon:", e);
-        res.status(500).send("Error");
-    }
-});
-
-// --- SEO FILES SERVING ---
+app.get('/api/status', (req, res) => res.json({ status: 'ok', db: pool ? 'connected' : 'disconnected' }));
 
 app.get('/robots.txt', async (req, res) => {
     const defaultRobots = "User-agent: *\nAllow: /";
     try {
         if (!pool) return res.type('text/plain').send(defaultRobots);
         const [rows] = await pool.query('SELECT data FROM settings WHERE setting_key = "robots_txt"');
-        const content = rows.length > 0 ? rows[0].data : defaultRobots;
-        res.type('text/plain').send(content);
-    } catch (e) {
-        console.error("Error serving robots.txt", e);
-        res.type('text/plain').send(defaultRobots);
-    }
+        res.type('text/plain').send(rows.length > 0 ? rows[0].data : defaultRobots);
+    } catch (e) { res.type('text/plain').send(defaultRobots); }
 });
 
 app.get('/sitemap.xml', async (req, res) => {
-    const defaultSitemap = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>';
+    const defaultSitemap = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>';
     try {
         if (!pool) return res.type('application/xml').send(defaultSitemap);
         const [rows] = await pool.query('SELECT data FROM settings WHERE setting_key = "sitemap_xml"');
-        const content = rows.length > 0 ? rows[0].data : defaultSitemap;
-        res.type('application/xml').send(content);
-    } catch (e) {
-        console.error("Error serving sitemap.xml", e);
-        res.type('application/xml').send(defaultSitemap);
-    }
+        res.type('application/xml').send(rows.length > 0 ? rows[0].data : defaultSitemap);
+    } catch (e) { res.type('application/xml').send(defaultSitemap); }
 });
 
-// --- SEO FILES API ---
-
 app.get('/api/seo-files', dbCheck, async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT setting_key, data FROM settings WHERE setting_key IN ("robots_txt", "sitemap_xml")');
-        const result = {
-            robots_txt: '',
-            sitemap_xml: ''
-        };
-        rows.forEach(r => {
-            result[r.setting_key] = r.data;
-        });
-        res.json(result);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
+    const [rows] = await pool.query('SELECT setting_key, data FROM settings WHERE setting_key IN ("robots_txt", "sitemap_xml")');
+    const result = { robots_txt: '', sitemap_xml: '' };
+    rows.forEach(r => { result[r.setting_key] = r.data; });
+    res.json(result);
 });
 
 app.post('/api/seo-files', dbCheck, async (req, res) => {
-    try {
-        const { robots_txt, sitemap_xml } = req.body;
-        
-        if (robots_txt !== undefined) {
-            await pool.query('INSERT INTO settings (setting_key, data) VALUES ("robots_txt", ?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [robots_txt]);
-        }
-        if (sitemap_xml !== undefined) {
-            await pool.query('INSERT INTO settings (setting_key, data) VALUES ("sitemap_xml", ?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [sitemap_xml]);
-        }
-        
-        res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
+    const { robots_txt, sitemap_xml } = req.body;
+    if (robots_txt !== undefined) await pool.query('INSERT INTO settings (setting_key, data) VALUES ("robots_txt", ?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [robots_txt]);
+    if (sitemap_xml !== undefined) await pool.query('INSERT INTO settings (setting_key, data) VALUES ("sitemap_xml", ?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [sitemap_xml]);
+    res.json({ success: true });
 });
-
 
 // Generic CRUD
 const createCrudHandlers = (table) => {
     app.get(`/api/${table}`, dbCheck, async (req, res) => {
-        try {
-            const [rows] = await pool.query(`SELECT * FROM ${table}`);
-            if (table === 'images') {
-                const items = rows.map(r => ({
-                    id: r.id,
-                    name: r.name,
-                    data: r.data // This is the base64 string
-                }));
-                return res.json(items);
-            }
-            const items = rows.map(r => { 
-                try { 
-                    return JSON.parse(r.data); 
-                } catch (e) { 
-                    return { id: r.id }; 
-                } 
-            });
-            res.json(items);
-        } catch (error) { res.status(500).json({ error: error.message }); }
+        const [rows] = await pool.query(`SELECT * FROM ${table}`);
+        if (table === 'images') return res.json(rows.map(r => ({ id: r.id, name: r.name, data: r.data })));
+        res.json(rows.map(r => JSON.parse(r.data)));
     });
-
     app.post(`/api/${table}`, dbCheck, async (req, res) => {
-        try {
-            const item = req.body;
-            const dataStr = JSON.stringify(item);
-            
-            if (table === 'blog_posts') {
-                 await pool.query(`INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, [item.id, item.title, item.category, dataStr]);
-            } else if (table === 'cases' || table === 'services' || table === 'packages') {
-                 await pool.query(`INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, [item.id, item.title, dataStr]);
-            } else if (table === 'images') {
-                 await pool.query(`INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, [item.id, item.name, item.data]);
-            } else {
-                 await pool.query(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)`, [item.id, dataStr]);
-            }
-            res.json({ success: true });
-        } catch (error) { res.status(500).json({ error: error.message }); }
+        const item = req.body;
+        const dataStr = JSON.stringify(item);
+        if (table === 'blog_posts') await pool.query(`INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, [item.id, item.title, item.category, dataStr]);
+        else if (['cases', 'services', 'packages'].includes(table)) await pool.query(`INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, [item.id, item.title, dataStr]);
+        else if (table === 'images') await pool.query(`INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, [item.id, item.name, item.data]);
+        else await pool.query(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)`, [item.id, dataStr]);
+        res.json({ success: true });
     });
-
     app.delete(`/api/${table}/:id`, dbCheck, async (req, res) => {
-        try {
-            await pool.query(`DELETE FROM ${table} WHERE id = ?`, [req.params.id]);
-            res.json({ success: true });
-        } catch (error) { res.status(500).json({ error: error.message }); }
+        await pool.query(`DELETE FROM ${table} WHERE id = ?`, [req.params.id]);
+        res.json({ success: true });
     });
 };
-
-// Leads specific
-app.get('/api/leads', dbCheck, async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM leads ORDER BY date DESC');
-        res.json(rows);
-    } catch (e) { res.status(500).json(e); }
-});
-
-app.post('/api/leads', dbCheck, async (req, res) => {
-    try {
-        const { id, name, phone, service, status, date } = req.body;
-        const validDate = date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ');
-        
-        // 1. Save to DB
-        await pool.query('INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status)', [id, name, phone, service, status, validDate]);
-        
-        // 2. Send Email Notification (Async)
-        const leadData = { name, phone, service, date: validDate };
-        sendEmailNotification(leadData);
-
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/leads/:id', dbCheck, async (req, res) => {
-    try {
-        const { status } = req.body;
-        await pool.query('UPDATE leads SET status = ? WHERE id = ?', [status, req.params.id]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
-});
-
-app.delete('/api/leads/:id', dbCheck, async (req, res) => {
-    try {
-        await pool.query('DELETE FROM leads WHERE id = ?', [req.params.id]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
-});
-
-// Settings specific
-app.get('/api/settings', dbCheck, async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT * FROM settings');
-        const settings = {};
-        rows.forEach(r => { if (r.setting_key === 'global') try { Object.assign(settings, JSON.parse(r.data)); } catch (e) {} });
-        res.json(settings);
-    } catch (e) { res.status(500).json(e); }
-});
-
-app.post('/api/settings', dbCheck, async (req, res) => {
-    try {
-        const dataStr = JSON.stringify(req.body);
-        await pool.query("INSERT INTO settings (setting_key, data) VALUES ('global', ?) ON DUPLICATE KEY UPDATE data=VALUES(data)", [dataStr]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
-});
-
-// Categories specific
-app.get('/api/categories', dbCheck, async (req, res) => {
-    try {
-        const [rows] = await pool.query('SELECT name FROM categories');
-        res.json(rows.map(r => r.name));
-    } catch (e) { res.status(500).json(e); }
-});
-
-app.post('/api/categories', dbCheck, async (req, res) => {
-    try {
-        await pool.query('INSERT IGNORE INTO categories (name) VALUES (?)', [req.body.name]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
-});
-
-app.delete('/api/categories/:name', dbCheck, async (req, res) => {
-    try {
-        await pool.query('DELETE FROM categories WHERE name = ?', [req.params.name]);
-        res.json({ success: true });
-    } catch (e) { res.status(500).json(e); }
-});
 
 createCrudHandlers('cases');
 createCrudHandlers('testimonials');
@@ -363,23 +167,108 @@ createCrudHandlers('blog_posts');
 createCrudHandlers('services'); 
 createCrudHandlers('packages'); 
 
-// --- STATIC FILES ---
-app.use(express.static(distPath, {
-  maxAge: '1d', 
-  setHeaders: (res, path) => {
-    if (path.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
-  }
-}));
-
-app.get('*', (req, res) => {
-  const indexPath = path.join(distPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    res.sendFile(indexPath);
-  } else {
-    res.status(500).send('Error: Build not found.');
-  }
+app.get('/api/leads', dbCheck, async (req, res) => {
+    const [rows] = await pool.query('SELECT * FROM leads ORDER BY date DESC');
+    res.json(rows);
+});
+app.post('/api/leads', dbCheck, async (req, res) => {
+    const { id, name, phone, service, status, date } = req.body;
+    const validDate = date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ');
+    await pool.query('INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status)', [id, name, phone, service, status, validDate]);
+    sendEmailNotification({ name, phone, service, date: validDate });
+    res.json({ success: true });
+});
+app.put('/api/leads/:id', dbCheck, async (req, res) => {
+    await pool.query('UPDATE leads SET status = ? WHERE id = ?', [req.body.status, req.params.id]);
+    res.json({ success: true });
+});
+app.delete('/api/leads/:id', dbCheck, async (req, res) => {
+    await pool.query('DELETE FROM leads WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+app.get('/api/settings', dbCheck, async (req, res) => {
+    const [rows] = await pool.query('SELECT * FROM settings WHERE setting_key = "global"');
+    res.json(rows.length > 0 ? JSON.parse(rows[0].data) : {});
 });
+app.post('/api/settings', dbCheck, async (req, res) => {
+    await pool.query("INSERT INTO settings (setting_key, data) VALUES ('global', ?) ON DUPLICATE KEY UPDATE data=VALUES(data)", [JSON.stringify(req.body)]);
+    res.json({ success: true });
+});
+
+app.get('/api/categories', dbCheck, async (req, res) => {
+    const [rows] = await pool.query('SELECT name FROM categories');
+    res.json(rows.map(r => r.name));
+});
+app.post('/api/categories', dbCheck, async (req, res) => {
+    await pool.query('INSERT IGNORE INTO categories (name) VALUES (?)', [req.body.name]);
+    res.json({ success: true });
+});
+app.delete('/api/categories/:name', dbCheck, async (req, res) => {
+    await pool.query('DELETE FROM categories WHERE name = ?', [req.params.name]);
+    res.json({ success: true });
+});
+
+// --- STATIC FILES & SEO INJECTION ---
+app.use(express.static(distPath, { index: false }));
+
+app.get('*', async (req, res) => {
+    const indexPath = path.join(distPath, 'index.html');
+    if (!fs.existsSync(indexPath)) return res.status(500).send('Build not found.');
+
+    let html = fs.readFileSync(indexPath, 'utf8');
+
+    // Default SEO values
+    let seo = {
+        title: 'Valstand | Маркетинговое Агентство',
+        description: 'Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии.',
+        keywords: 'маркетинг, агентство, продвижение',
+        ogImage: '/logo.png'
+    };
+
+    try {
+        if (pool) {
+            const [rows] = await pool.query('SELECT data FROM settings WHERE setting_key = "global"');
+            if (rows.length > 0) {
+                const settings = JSON.parse(rows[0].data);
+                const urlPath = req.path;
+                
+                // Determine Page Key
+                let pageKey = 'home';
+                if (urlPath === '/') pageKey = 'home';
+                else if (urlPath.startsWith('/services/')) pageKey = `service:${urlPath.split('/')[2]}`;
+                else if (urlPath.startsWith('/packages/')) pageKey = `package:${urlPath.split('/')[2]}`;
+                else if (urlPath.startsWith('/cases/')) pageKey = `case:${urlPath.split('/')[2]}`;
+                else if (urlPath.startsWith('/blog/')) pageKey = `blog:${urlPath.split('/')[2]}`;
+                else pageKey = urlPath.substring(1);
+
+                const pageSeo = settings.seo?.[pageKey];
+                if (pageSeo) {
+                    if (pageSeo.title) seo.title = pageSeo.title;
+                    if (pageSeo.description) seo.description = pageSeo.description;
+                    if (pageSeo.keywords) seo.keywords = pageSeo.keywords;
+                    if (pageSeo.ogImage) seo.ogImage = pageSeo.ogImage;
+                }
+            }
+        }
+    } catch (e) { console.error("SEO Injection Error:", e); }
+
+    // Inject into HTML
+    html = html.replace(/<title>.*?<\/title>/, `<title>${seo.title}</title>`);
+    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${seo.description}" />`);
+    html = html.replace(/<meta name="keywords" content=".*?" \/>/, `<meta name="keywords" content="${seo.keywords}" />`);
+    
+    // Open Graph
+    html = html.replace(/<meta property="og:title" content=".*?" \/>/, `<meta property="og:title" content="${seo.title}" />`);
+    html = html.replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${seo.description}" />`);
+    html = html.replace(/<meta property="og:image" content=".*?" \/>/, `<meta property="og:image" content="${seo.ogImage}" />`);
+    
+    // Twitter
+    html = html.replace(/<meta name="twitter:title" content=".*?" \/>/, `<meta name="twitter:title" content="${seo.title}" />`);
+    html = html.replace(/<meta name="twitter:description" content=".*?" \/>/, `<meta name="twitter:description" content="${seo.description}" />`);
+    html = html.replace(/<meta name="twitter:image" content=".*?" \/>/, `<meta name="twitter:image" content="${seo.ogImage}" />`);
+
+    res.send(html);
+});
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
