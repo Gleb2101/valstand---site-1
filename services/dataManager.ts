@@ -37,18 +37,25 @@ const invalidateCache = (key: string) => {
     cache[key] = null;
 };
 
-// Fallback to constants if server is offline
+// Fallback to constants if server is offline or slow
 const fetchWithFallback = async <T>(endpoint: string, fallback: T): Promise<T> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500); // 3.5s timeout
+
   try {
-    const res = await fetch(`${API_URL}/${endpoint}`);
+    const res = await fetch(`${API_URL}/${endpoint}`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
     if (!res.ok) throw new Error(`Server error: ${res.status}`);
     const data = await res.json();
+    
     if (Array.isArray(data) && data.length === 0 && Array.isArray(fallback) && fallback.length > 0) {
         return fallback; 
     }
     return data;
   } catch (e: any) {
-    console.warn(`API ${endpoint} failed, using fallback. Error:`, e);
+    clearTimeout(timeoutId);
+    console.warn(`API ${endpoint} failed or timed out, using fallback. Error:`, e.message);
     return fallback;
   }
 };

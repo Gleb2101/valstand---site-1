@@ -137,20 +137,36 @@ const App: React.FC = () => {
        setIsLoading(true);
        try {
            dataManager.init(); 
-           const [cases, posts, services, pkgs] = await Promise.all([
+           // We use a timeout to ensure we don't hang forever if the database is slow
+           const dataPromise = Promise.all([
                dataManager.getCases(),
                dataManager.getBlogPosts(),
                dataManager.getServices(),
                dataManager.getPackages()
            ]);
-           setDynamicCases(cases);
-           setDynamicPosts(posts);
-           setServicesData(services);
-           setPackagesData(pkgs);
+
+           const timeoutPromise = new Promise((_, reject) => 
+               setTimeout(() => reject(new Error('Timeout')), 5000)
+           );
+
+           const [cases, posts, services, pkgs] = await Promise.race([dataPromise, timeoutPromise]) as any;
+           
+           if (cases) setDynamicCases(cases);
+           if (posts) setDynamicPosts(posts);
+           if (services) setServicesData(services);
+           if (pkgs) setPackagesData(pkgs);
        } catch (e) {
-           console.error("Failed to load initial data", e);
+           console.warn("Using static data due to load delay or error:", e);
+           // Fallback is handled by dataManager returning initial constants on error
        } finally {
            setIsLoading(false);
+           
+           // Dismiss the HTML initial loader once React is ready
+           const htmlLoader = document.getElementById('initial-loader');
+           if (htmlLoader) {
+               htmlLoader.style.opacity = '0';
+               setTimeout(() => htmlLoader.remove(), 500);
+           }
        }
     };
     loadData();
@@ -202,17 +218,6 @@ const App: React.FC = () => {
     if (p) { dynamicTitle = p.title; dynamicDescription = p.excerpt; }
   }
 
-  if (isLoading) {
-      return (
-          <div className="min-h-screen flex items-center justify-center bg-slate-50">
-              <div className="text-center">
-                  <Loader className="w-10 h-10 text-brand-orange animate-spin mx-auto mb-4" />
-                  <p className="text-slate-500">Загрузка данных...</p>
-              </div>
-          </div>
-      );
-  }
-
   if (location.pathname === '/admin') {
      return <AdminPanel onBack={() => {
         Promise.all([
@@ -241,6 +246,15 @@ const App: React.FC = () => {
         dynamicDescription={dynamicDescription}
       />
       
+      {isLoading ? (
+          <div className="fixed inset-0 flex items-center justify-center bg-white z-[60]">
+              <div className="text-center">
+                  <Loader className="w-10 h-10 text-brand-orange animate-spin mx-auto mb-4" />
+                  <p className="text-slate-500 font-medium">Загрузка Valstand...</p>
+              </div>
+          </div>
+      ) : null}
+
       <Header onNavigate={handleNavigate} currentPage={getCurrentPageKey()} />
       
       <main className="flex-grow">
