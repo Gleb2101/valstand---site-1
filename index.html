@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <title>Valstand | Маркетинговое Агентство</title>
-    <meta name="description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии. Современные решения для роста вашего бизнеса.">
+    <meta name="description" content="Комплексное маркетинговое агентство Valstand: Таргет, SEO, Контент-стратегии.">
     <meta name="keywords" content="маркетинг, агентство, продвижение, реклама">
     
-    <!-- Open Graph -->
+    <!-- Open Graph (Placeholders for Server Injection) -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="Valstand | Маркетинговое Агентство">
-    <meta property="og:description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии.">
-    <meta property="og:image" content="https://valstand.ru/logo.png">
-    <meta property="og:url" content="https://valstand.ru">
+    <meta property="og:description" content="Комплексное маркетинговое агентство Valstand.">
+    <meta property="og:image" content="">
+    <meta property="og:url" content="">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Valstand | Маркетинговое Агентство">
-    <meta name="twitter:description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии.">
-    <meta name="twitter:image" content="https://valstand.ru/logo.png">
+    <meta name="twitter:description" content="Комплексное маркетинговое агентство Valstand.">
+    <meta name="twitter:image" content="">
 
     <link rel="icon" href="/favicon_val.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -44,18 +44,6 @@
     <style>
       html { scroll-behavior: smooth; }
       body { background-color: #F8FAFC; color: #0F172A; }
-      .glass-panel {
-        background: rgba(255, 255, 255, 0.85);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(226, 232, 240, 0.8);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-      }
-      .text-gradient {
-        background: linear-gradient(to right, #FFB800, #FF8A00);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
       #initial-loader {
         position: fixed; inset: 0; background: #fff; z-index: 9999;
         display: flex; align-items: center; justify-content: center;
@@ -67,20 +55,7 @@
         animation: rotation 1s linear infinite;
       }
       @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-      #error-overlay { display: none; padding: 20px; color: #dc2626; background: #fff; font-family: sans-serif; position: fixed; inset: 0; z-index: 10000; overflow: auto; }
     </style>
-    
-    <script>
-      window.onload = function() {
-          setTimeout(function(){
-              var loader = document.getElementById('initial-loader');
-              if(loader) {
-                loader.style.opacity = '0';
-                setTimeout(function(){ loader.style.display='none'; }, 500);
-              }
-          }, 1000);
-      }
-    </script>
 <script type="importmap">
 {
   "imports": {
@@ -89,7 +64,6 @@
     "react/": "https://esm.sh/react@^19.2.3/",
     "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
     "vite": "https://esm.sh/vite@^7.2.7",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "express": "https://esm.sh/express@^5.2.1",
     "mysql2/": "https://esm.sh/mysql2@^3.15.3/",
     "cors": "https://esm.sh/cors@^2.8.5",
@@ -98,17 +72,14 @@
     "url": "https://esm.sh/url@^0.11.4",
     "fs": "https://esm.sh/fs@^0.0.1-security",
     "react-router-dom": "https://esm.sh/react-router-dom@^7.10.1",
-    "nodemailer": "https://esm.sh/nodemailer@^7.0.11"
+    "nodemailer": "https://esm.sh/nodemailer@^7.0.11",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
   <body>
     <div id="initial-loader"><div class="loader-spinner"></div></div>
-    <div id="error-overlay">
-        <h1>Не удалось запустить приложение</h1>
-        <hr/>
-    </div>
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
   </body>

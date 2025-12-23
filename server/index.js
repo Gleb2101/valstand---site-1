@@ -65,7 +65,7 @@ const initTables = async (connection) => {
 
 connectDB();
 
-// --- API ROUTES ---
+// API handlers (generic crud)
 const dbCheck = (req, res, next) => {
     if (!pool) {
         if (req.method === 'GET') return res.json([]);
@@ -115,7 +115,7 @@ app.post('/api/settings', dbCheck, async (req, res) => {
     res.json({ success: true });
 });
 
-// --- STATIC FILES & ROBUST SEO INJECTION ---
+// --- STATIC FILES & PURE SERVER-SIDE SEO ---
 app.use(express.static(distPath, { index: false }));
 
 app.get('*', async (req, res) => {
@@ -124,85 +124,90 @@ app.get('*', async (req, res) => {
 
     let html = fs.readFileSync(indexPath, 'utf8');
     const host = req.get('host');
-    const protocol = req.protocol;
-    const fullUrl = `${protocol}://${host}${req.originalUrl}`;
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const siteUrl = `${protocol}://${host}`;
+    const fullUrl = `${siteUrl}${req.originalUrl}`;
 
     // Default SEO values
     let seo = {
         title: 'Valstand | Маркетинговое Агентство',
-        description: 'Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии. Современные решения для роста вашего бизнеса.',
+        description: 'Комплексное маркетинговое агентство Valstand: Таргет, SEO, Контент-стратегии. Современные решения для бизнеса.',
         keywords: 'маркетинг, агентство, продвижение',
-        ogImage: `${protocol}://${host}/logo.png`
+        ogImage: `${siteUrl}/logo.png`
     };
 
     try {
         if (pool) {
             const [settingsRows] = await pool.query('SELECT data FROM settings WHERE setting_key = "global"');
-            if (settingsRows.length > 0) {
-                const settings = JSON.parse(settingsRows[0].data);
-                const urlPath = req.path.replace(/\/$/, ""); // Remove trailing slash
-                let pageKey = urlPath === "" ? "home" : urlPath.substring(1);
-                
-                let dynamicId = '';
-                let table = '';
+            const settings = settingsRows.length > 0 ? JSON.parse(settingsRows[0].data) : {};
+            
+            const rawPath = req.path.replace(/\/$/, ""); 
+            const urlPath = rawPath === "" ? "/" : rawPath;
+            
+            let pageKey = urlPath === "/" ? "home" : urlPath.substring(1);
+            let dynamicId = '';
+            let table = '';
 
-                if (urlPath === '') pageKey = 'home';
-                else if (urlPath.startsWith('/services/')) { dynamicId = urlPath.split('/')[2]; pageKey = `service:${dynamicId}`; table = 'services'; }
-                else if (urlPath.startsWith('/packages/')) { dynamicId = urlPath.split('/')[2]; pageKey = `package:${dynamicId}`; table = 'packages'; }
-                else if (urlPath.startsWith('/cases/')) { dynamicId = urlPath.split('/')[2]; pageKey = `case:${dynamicId}`; table = 'cases'; }
-                else if (urlPath.startsWith('/blog/')) { dynamicId = urlPath.split('/')[2]; pageKey = `blog:${dynamicId}`; table = 'blog_posts'; }
+            if (urlPath.startsWith('/services/')) { dynamicId = urlPath.split('/')[2]; pageKey = `service:${dynamicId}`; table = 'services'; }
+            else if (urlPath.startsWith('/packages/')) { dynamicId = urlPath.split('/')[2]; pageKey = `package:${dynamicId}`; table = 'packages'; }
+            else if (urlPath.startsWith('/cases/')) { dynamicId = urlPath.split('/')[2]; pageKey = `case:${dynamicId}`; table = 'cases'; }
+            else if (urlPath.startsWith('/blog/')) { dynamicId = urlPath.split('/')[2]; pageKey = `blog:${dynamicId}`; table = 'blog_posts'; }
 
-                // 1. Try manual SEO from Admin Panel
-                const manualSeo = settings.seo?.[pageKey];
-                if (manualSeo) {
-                    if (manualSeo.title) seo.title = manualSeo.title;
-                    if (manualSeo.description) seo.description = manualSeo.description;
-                    if (manualSeo.keywords) seo.keywords = manualSeo.keywords;
-                    if (manualSeo.ogImage) {
-                        seo.ogImage = manualSeo.ogImage.startsWith('http') ? manualSeo.ogImage : `${protocol}://${host}${manualSeo.ogImage}`;
-                    }
-                } 
-                
-                // 2. Fallback to dynamic content if title/desc still default and it's a dynamic page
-                if ((!manualSeo || !manualSeo.title) && table && dynamicId) {
-                    const [itemRows] = await pool.query(`SELECT data FROM ${table} WHERE id = ?`, [dynamicId]);
-                    if (itemRows.length > 0) {
-                        const itemData = JSON.parse(itemRows[0].data);
-                        seo.title = (itemData.title || itemData.name) + ' | Valstand';
-                        seo.description = itemData.excerpt || itemData.description || seo.description;
-                        if (itemData.image) {
-                            seo.ogImage = itemData.image.startsWith('http') ? itemData.image : `${protocol}://${host}${itemData.image}`;
-                        }
+            // 1. Try manual SEO from Admin Panel
+            const manualSeo = settings.seo?.[pageKey];
+            if (manualSeo) {
+                if (manualSeo.title) seo.title = manualSeo.title;
+                if (manualSeo.description) seo.description = manualSeo.description;
+                if (manualSeo.keywords) seo.keywords = manualSeo.keywords;
+                if (manualSeo.ogImage) {
+                    // Force Absolute URL for images (Messengers requirement)
+                    seo.ogImage = manualSeo.ogImage.startsWith('http') ? manualSeo.ogImage : `${siteUrl}${manualSeo.ogImage.startsWith('/') ? '' : '/'}${manualSeo.ogImage}`;
+                }
+            } 
+            
+            // 2. Fallback to dynamic content if no manual SEO
+            if ((!manualSeo || !manualSeo.title) && table && dynamicId) {
+                const [itemRows] = await pool.query(`SELECT data FROM ${table} WHERE id = ?`, [dynamicId]);
+                if (itemRows.length > 0) {
+                    const itemData = JSON.parse(itemRows[0].data);
+                    seo.title = (itemData.title || itemData.name) + ' | Valstand';
+                    seo.description = itemData.excerpt || itemData.description || seo.description;
+                    if (itemData.image) {
+                        seo.ogImage = itemData.image.startsWith('http') ? itemData.image : `${siteUrl}${itemData.image.startsWith('/') ? '' : '/'}${itemData.image}`;
                     }
                 }
             }
         }
-    } catch (e) { console.error("SEO Injection Error:", e); }
+    } catch (e) { console.error("SEO Error:", e); }
 
-    // Robust Injection using flexible Regex
-    // This will replace the tags even if they have different attributes or self-closing styles
+    // --- REPLACEMENT ENGINE ---
+    // Title
     html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${seo.title}</title>`);
     
-    const replaceMeta = (tagName, attrName, attrValue, content) => {
-        const regex = new RegExp(`<meta\\s+[^>]*?${attrName}=["']${attrValue}["'][^>]*?>`, "i");
-        const newTag = `<meta ${attrName}="${attrValue}" content="${content}">`;
-        if (regex.test(html)) {
-            html = html.replace(regex, newTag);
+    // Function for clean meta replacement
+    const injectMeta = (htmlContent, attrName, attrVal, content) => {
+        const regex = new RegExp(`<meta\\s+[^>]*?${attrName}=["']${attrVal}["'][^>]*?>`, "i");
+        const newTag = `<meta ${attrName}="${attrVal}" content="${content}">`;
+        if (regex.test(htmlContent)) {
+            return htmlContent.replace(regex, newTag);
         } else {
-            // Append to head if not found
-            html = html.replace(/<\/head>/i, `${newTag}\n</head>`);
+            return htmlContent.replace(/<\/head>/i, `${newTag}\n</head>`);
         }
     };
 
-    replaceMeta('meta', 'name', 'description', seo.description);
-    replaceMeta('meta', 'name', 'keywords', seo.keywords);
-    replaceMeta('meta', 'property', 'og:title', seo.title);
-    replaceMeta('meta', 'property', 'og:description', seo.description);
-    replaceMeta('meta', 'property', 'og:image', seo.ogImage);
-    replaceMeta('meta', 'property', 'og:url', fullUrl);
-    replaceMeta('meta', 'name', 'twitter:title', seo.title);
-    replaceMeta('meta', 'name', 'twitter:description', seo.description);
-    replaceMeta('meta', 'name', 'twitter:image', seo.ogImage);
+    html = injectMeta(html, 'name', 'description', seo.description);
+    html = injectMeta(html, 'name', 'keywords', seo.keywords);
+    
+    // Open Graph (Absolute priority for messengers)
+    html = injectMeta(html, 'property', 'og:title', seo.title);
+    html = injectMeta(html, 'property', 'og:description', seo.description);
+    html = injectMeta(html, 'property', 'og:image', seo.ogImage);
+    html = injectMeta(html, 'property', 'og:url', fullUrl);
+    
+    // Twitter
+    html = injectMeta(html, 'name', 'twitter:title', seo.title);
+    html = injectMeta(html, 'name', 'twitter:description', seo.description);
+    html = injectMeta(html, 'name', 'twitter:image', seo.ogImage);
 
     res.send(html);
 });
