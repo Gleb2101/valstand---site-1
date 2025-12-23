@@ -37,11 +37,11 @@ const connectDB = async () => {
     try {
         pool = mysql.createPool(dbConfig);
         const connection = await pool.getConnection();
-        console.log('✅ DATABASE CONNECTED SUCCESSFULLY');
+        console.log('✅ DATABASE CONNECTED');
         await initTables(connection);
         connection.release();
     } catch (err) {
-        console.error('❌ DATABASE CONNECTION FAILED', err.message);
+        console.error('❌ DATABASE FAILED', err.message);
         pool = null; 
     }
 };
@@ -60,88 +60,27 @@ const initTables = async (connection) => {
         }
         await connection.query(`CREATE TABLE IF NOT EXISTS settings (setting_key VARCHAR(255) PRIMARY KEY, data LONGTEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS categories (name VARCHAR(255) PRIMARY KEY)`);
-    } catch (e) {
-        console.error("Table init error:", e.message);
-    }
+    } catch (e) { console.error("Table init error:", e.message); }
 };
 
 connectDB();
-
-// --- HELPER FOR EMAIL ---
-const sendEmailNotification = async (lead) => {
-    if (!pool) return;
-    try {
-        const [rows] = await pool.query("SELECT data FROM settings WHERE setting_key = 'global'");
-        if (rows.length === 0) return;
-        const settings = JSON.parse(rows[0].data);
-        const mailConfig = settings.mailConfig;
-        if (!mailConfig || !mailConfig.enabled) return;
-
-        const transporter = nodemailer.createTransport({
-            host: mailConfig.host,
-            port: parseInt(mailConfig.port) || 465,
-            secure: parseInt(mailConfig.port) === 465,
-            auth: { user: mailConfig.user, pass: mailConfig.pass },
-        });
-
-        await transporter.sendMail({
-            from: `"Valstand Bot" <${mailConfig.user}>`,
-            to: mailConfig.receiverEmail,
-            subject: `🔥 Новая заявка: ${lead.name}`,
-            html: `<h2>Новая заявка на сайте Valstand</h2><p><strong>Имя:</strong> ${lead.name}</p><p><strong>Телефон:</strong> ${lead.phone}</p><p><strong>Услуга:</strong> ${lead.service}</p><p><strong>Дата:</strong> ${lead.date}</p><br /><a href="https://valstand.ru/admin">Перейти в админку</a>`,
-        });
-    } catch (error) { console.error("Error sending email:", error); }
-};
 
 // --- API ROUTES ---
 const dbCheck = (req, res, next) => {
     if (!pool) {
         if (req.method === 'GET') return res.json([]);
-        return res.status(503).json({ error: "Database unavailable", success: false });
+        return res.status(503).json({ error: "Database unavailable" });
     }
     next();
 };
 
-app.get('/api/status', (req, res) => res.json({ status: 'ok', db: pool ? 'connected' : 'disconnected' }));
-
-app.get('/robots.txt', async (req, res) => {
-    const defaultRobots = "User-agent: *\nAllow: /";
-    try {
-        if (!pool) return res.type('text/plain').send(defaultRobots);
-        const [rows] = await pool.query('SELECT data FROM settings WHERE setting_key = "robots_txt"');
-        res.type('text/plain').send(rows.length > 0 ? rows[0].data : defaultRobots);
-    } catch (e) { res.type('text/plain').send(defaultRobots); }
-});
-
-app.get('/sitemap.xml', async (req, res) => {
-    const defaultSitemap = '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>';
-    try {
-        if (!pool) return res.type('application/xml').send(defaultSitemap);
-        const [rows] = await pool.query('SELECT data FROM settings WHERE setting_key = "sitemap_xml"');
-        res.type('application/xml').send(rows.length > 0 ? rows[0].data : defaultSitemap);
-    } catch (e) { res.type('application/xml').send(defaultSitemap); }
-});
-
-app.get('/api/seo-files', dbCheck, async (req, res) => {
-    const [rows] = await pool.query('SELECT setting_key, data FROM settings WHERE setting_key IN ("robots_txt", "sitemap_xml")');
-    const result = { robots_txt: '', sitemap_xml: '' };
-    rows.forEach(r => { result[r.setting_key] = r.data; });
-    res.json(result);
-});
-
-app.post('/api/seo-files', dbCheck, async (req, res) => {
-    const { robots_txt, sitemap_xml } = req.body;
-    if (robots_txt !== undefined) await pool.query('INSERT INTO settings (setting_key, data) VALUES ("robots_txt", ?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [robots_txt]);
-    if (sitemap_xml !== undefined) await pool.query('INSERT INTO settings (setting_key, data) VALUES ("sitemap_xml", ?) ON DUPLICATE KEY UPDATE data=VALUES(data)', [sitemap_xml]);
-    res.json({ success: true });
-});
-
-// Generic CRUD
 const createCrudHandlers = (table) => {
     app.get(`/api/${table}`, dbCheck, async (req, res) => {
         const [rows] = await pool.query(`SELECT * FROM ${table}`);
         if (table === 'images') return res.json(rows.map(r => ({ id: r.id, name: r.name, data: r.data })));
-        res.json(rows.map(r => JSON.parse(r.data)));
+        res.json(rows.map(r => {
+            try { return JSON.parse(r.data); } catch(e) { return {}; }
+        }));
     });
     app.post(`/api/${table}`, dbCheck, async (req, res) => {
         const item = req.body;
@@ -167,26 +106,6 @@ createCrudHandlers('blog_posts');
 createCrudHandlers('services'); 
 createCrudHandlers('packages'); 
 
-app.get('/api/leads', dbCheck, async (req, res) => {
-    const [rows] = await pool.query('SELECT * FROM leads ORDER BY date DESC');
-    res.json(rows);
-});
-app.post('/api/leads', dbCheck, async (req, res) => {
-    const { id, name, phone, service, status, date } = req.body;
-    const validDate = date ? date : new Date().toISOString().slice(0, 19).replace('T', ' ');
-    await pool.query('INSERT INTO leads (id, name, phone, service, status, date) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE status=VALUES(status)', [id, name, phone, service, status, validDate]);
-    sendEmailNotification({ name, phone, service, date: validDate });
-    res.json({ success: true });
-});
-app.put('/api/leads/:id', dbCheck, async (req, res) => {
-    await pool.query('UPDATE leads SET status = ? WHERE id = ?', [req.body.status, req.params.id]);
-    res.json({ success: true });
-});
-app.delete('/api/leads/:id', dbCheck, async (req, res) => {
-    await pool.query('DELETE FROM leads WHERE id = ?', [req.params.id]);
-    res.json({ success: true });
-});
-
 app.get('/api/settings', dbCheck, async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM settings WHERE setting_key = "global"');
     res.json(rows.length > 0 ? JSON.parse(rows[0].data) : {});
@@ -196,20 +115,7 @@ app.post('/api/settings', dbCheck, async (req, res) => {
     res.json({ success: true });
 });
 
-app.get('/api/categories', dbCheck, async (req, res) => {
-    const [rows] = await pool.query('SELECT name FROM categories');
-    res.json(rows.map(r => r.name));
-});
-app.post('/api/categories', dbCheck, async (req, res) => {
-    await pool.query('INSERT IGNORE INTO categories (name) VALUES (?)', [req.body.name]);
-    res.json({ success: true });
-});
-app.delete('/api/categories/:name', dbCheck, async (req, res) => {
-    await pool.query('DELETE FROM categories WHERE name = ?', [req.params.name]);
-    res.json({ success: true });
-});
-
-// --- STATIC FILES & SEO INJECTION ---
+// --- STATIC FILES & ROBUST SEO INJECTION ---
 app.use(express.static(distPath, { index: false }));
 
 app.get('*', async (req, res) => {
@@ -217,56 +123,86 @@ app.get('*', async (req, res) => {
     if (!fs.existsSync(indexPath)) return res.status(500).send('Build not found.');
 
     let html = fs.readFileSync(indexPath, 'utf8');
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const fullUrl = `${protocol}://${host}${req.originalUrl}`;
 
     // Default SEO values
     let seo = {
         title: 'Valstand | Маркетинговое Агентство',
-        description: 'Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии.',
+        description: 'Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии. Современные решения для роста вашего бизнеса.',
         keywords: 'маркетинг, агентство, продвижение',
-        ogImage: '/logo.png'
+        ogImage: `${protocol}://${host}/logo.png`
     };
 
     try {
         if (pool) {
-            const [rows] = await pool.query('SELECT data FROM settings WHERE setting_key = "global"');
-            if (rows.length > 0) {
-                const settings = JSON.parse(rows[0].data);
-                const urlPath = req.path;
+            const [settingsRows] = await pool.query('SELECT data FROM settings WHERE setting_key = "global"');
+            if (settingsRows.length > 0) {
+                const settings = JSON.parse(settingsRows[0].data);
+                const urlPath = req.path.replace(/\/$/, ""); // Remove trailing slash
+                let pageKey = urlPath === "" ? "home" : urlPath.substring(1);
                 
-                // Determine Page Key
-                let pageKey = 'home';
-                if (urlPath === '/') pageKey = 'home';
-                else if (urlPath.startsWith('/services/')) pageKey = `service:${urlPath.split('/')[2]}`;
-                else if (urlPath.startsWith('/packages/')) pageKey = `package:${urlPath.split('/')[2]}`;
-                else if (urlPath.startsWith('/cases/')) pageKey = `case:${urlPath.split('/')[2]}`;
-                else if (urlPath.startsWith('/blog/')) pageKey = `blog:${urlPath.split('/')[2]}`;
-                else pageKey = urlPath.substring(1);
+                let dynamicId = '';
+                let table = '';
 
-                const pageSeo = settings.seo?.[pageKey];
-                if (pageSeo) {
-                    if (pageSeo.title) seo.title = pageSeo.title;
-                    if (pageSeo.description) seo.description = pageSeo.description;
-                    if (pageSeo.keywords) seo.keywords = pageSeo.keywords;
-                    if (pageSeo.ogImage) seo.ogImage = pageSeo.ogImage;
+                if (urlPath === '') pageKey = 'home';
+                else if (urlPath.startsWith('/services/')) { dynamicId = urlPath.split('/')[2]; pageKey = `service:${dynamicId}`; table = 'services'; }
+                else if (urlPath.startsWith('/packages/')) { dynamicId = urlPath.split('/')[2]; pageKey = `package:${dynamicId}`; table = 'packages'; }
+                else if (urlPath.startsWith('/cases/')) { dynamicId = urlPath.split('/')[2]; pageKey = `case:${dynamicId}`; table = 'cases'; }
+                else if (urlPath.startsWith('/blog/')) { dynamicId = urlPath.split('/')[2]; pageKey = `blog:${dynamicId}`; table = 'blog_posts'; }
+
+                // 1. Try manual SEO from Admin Panel
+                const manualSeo = settings.seo?.[pageKey];
+                if (manualSeo) {
+                    if (manualSeo.title) seo.title = manualSeo.title;
+                    if (manualSeo.description) seo.description = manualSeo.description;
+                    if (manualSeo.keywords) seo.keywords = manualSeo.keywords;
+                    if (manualSeo.ogImage) {
+                        seo.ogImage = manualSeo.ogImage.startsWith('http') ? manualSeo.ogImage : `${protocol}://${host}${manualSeo.ogImage}`;
+                    }
+                } 
+                
+                // 2. Fallback to dynamic content if title/desc still default and it's a dynamic page
+                if ((!manualSeo || !manualSeo.title) && table && dynamicId) {
+                    const [itemRows] = await pool.query(`SELECT data FROM ${table} WHERE id = ?`, [dynamicId]);
+                    if (itemRows.length > 0) {
+                        const itemData = JSON.parse(itemRows[0].data);
+                        seo.title = (itemData.title || itemData.name) + ' | Valstand';
+                        seo.description = itemData.excerpt || itemData.description || seo.description;
+                        if (itemData.image) {
+                            seo.ogImage = itemData.image.startsWith('http') ? itemData.image : `${protocol}://${host}${itemData.image}`;
+                        }
+                    }
                 }
             }
         }
     } catch (e) { console.error("SEO Injection Error:", e); }
 
-    // Inject into HTML
-    html = html.replace(/<title>.*?<\/title>/, `<title>${seo.title}</title>`);
-    html = html.replace(/<meta name="description" content=".*?" \/>/, `<meta name="description" content="${seo.description}" />`);
-    html = html.replace(/<meta name="keywords" content=".*?" \/>/, `<meta name="keywords" content="${seo.keywords}" />`);
+    // Robust Injection using flexible Regex
+    // This will replace the tags even if they have different attributes or self-closing styles
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${seo.title}</title>`);
     
-    // Open Graph
-    html = html.replace(/<meta property="og:title" content=".*?" \/>/, `<meta property="og:title" content="${seo.title}" />`);
-    html = html.replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${seo.description}" />`);
-    html = html.replace(/<meta property="og:image" content=".*?" \/>/, `<meta property="og:image" content="${seo.ogImage}" />`);
-    
-    // Twitter
-    html = html.replace(/<meta name="twitter:title" content=".*?" \/>/, `<meta name="twitter:title" content="${seo.title}" />`);
-    html = html.replace(/<meta name="twitter:description" content=".*?" \/>/, `<meta name="twitter:description" content="${seo.description}" />`);
-    html = html.replace(/<meta name="twitter:image" content=".*?" \/>/, `<meta name="twitter:image" content="${seo.ogImage}" />`);
+    const replaceMeta = (tagName, attrName, attrValue, content) => {
+        const regex = new RegExp(`<meta\\s+[^>]*?${attrName}=["']${attrValue}["'][^>]*?>`, "i");
+        const newTag = `<meta ${attrName}="${attrValue}" content="${content}">`;
+        if (regex.test(html)) {
+            html = html.replace(regex, newTag);
+        } else {
+            // Append to head if not found
+            html = html.replace(/<\/head>/i, `${newTag}\n</head>`);
+        }
+    };
+
+    replaceMeta('meta', 'name', 'description', seo.description);
+    replaceMeta('meta', 'name', 'keywords', seo.keywords);
+    replaceMeta('meta', 'property', 'og:title', seo.title);
+    replaceMeta('meta', 'property', 'og:description', seo.description);
+    replaceMeta('meta', 'property', 'og:image', seo.ogImage);
+    replaceMeta('meta', 'property', 'og:url', fullUrl);
+    replaceMeta('meta', 'name', 'twitter:title', seo.title);
+    replaceMeta('meta', 'name', 'twitter:description', seo.description);
+    replaceMeta('meta', 'name', 'twitter:image', seo.ogImage);
 
     res.send(html);
 });

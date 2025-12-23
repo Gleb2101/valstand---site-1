@@ -49,8 +49,6 @@ const fetchWithFallback = async <T>(endpoint: string, fallback: T): Promise<T> =
     return data;
   } catch (e: any) {
     console.warn(`API ${endpoint} failed, using fallback. Error:`, e);
-    const ls = localStorage.getItem(`valstand_${endpoint}`);
-    if (ls) return JSON.parse(ls);
     return fallback;
   }
 };
@@ -58,9 +56,8 @@ const fetchWithFallback = async <T>(endpoint: string, fallback: T): Promise<T> =
 // Helper for cached requests
 const getCached = <T>(key: string, endpoint: string, fallback: T): Promise<T> => {
     if (!cache[key]) {
-        // Create the promise and store it immediately to prevent race conditions
         cache[key] = fetchWithFallback(endpoint, fallback).catch(err => {
-            cache[key] = null; // Reset cache on error so we can try again
+            cache[key] = null; 
             throw err;
         });
     }
@@ -80,8 +77,6 @@ const postData = async (endpoint: string, data: any) => {
         }
     } catch (e: any) {
         console.error(`Save to ${endpoint} failed`, e);
-        const errorMsg = e?.message || String(e);
-        alert(`Ошибка сохранения данных: ${errorMsg}.`);
         throw e; 
     }
 };
@@ -92,7 +87,6 @@ const deleteData = async (endpoint: string, id: string | number) => {
         if (!res.ok) throw new Error('Delete failed');
     } catch (e: any) {
         console.error("Delete failed", e);
-        alert('Ошибка удаления. Сервер недоступен.');
         throw e;
     }
 };
@@ -100,15 +94,12 @@ const deleteData = async (endpoint: string, id: string | number) => {
 export const dataManager = {
   init: async () => {
      try {
-       await fetch(`${API_URL}`); 
-     } catch (e: any) {
-       console.log("Backend offline");
-     }
+       await fetch(`${API_URL}/status`); 
+     } catch (e: any) {}
   },
 
   // Services
   getServices: (): Promise<ServiceItem[]> => {
-      // Sort services by orderIndex if available
       return getCached('services', 'services', SERVICES).then(items => {
           return items.sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
       });
@@ -124,9 +115,7 @@ export const dataManager = {
 
   // Packages
   getPackages: (): Promise<ServicePackage[]> => {
-    return getCached('packages', 'packages', PACKAGES).then(items => {
-        return items.sort((a, b) => ((a as any).orderIndex || 0) - ((b as any).orderIndex || 0));
-    });
+    return getCached('packages', 'packages', PACKAGES);
   },
   savePackage: async (item: ServicePackage) => {
       await postData('packages', item);
@@ -192,7 +181,7 @@ export const dataManager = {
       invalidateCache('categories');
   },
 
-  // Leads (No caching needed for volatile data)
+  // Leads
   getLeads: async (): Promise<Lead[]> => fetchWithFallback('leads', []),
   addLead: async (lead: Omit<Lead, 'id' | 'date' | 'status'>) => {
     const date = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -211,7 +200,7 @@ export const dataManager = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status })
         });
-      } catch (e: any) { console.error(e); }
+      } catch (e: any) {}
   },
   deleteLead: async (id: string) => deleteData('leads', id),
 
@@ -241,7 +230,7 @@ export const dataManager = {
   getSettings: async (): Promise<SiteSettings> => {
       if (cache.settings) return cache.settings;
       
-      const fallback = { headerCode: '', footerCode: '', seo: DEFAULT_SEO, socials: {} };
+      const fallback: SiteSettings = { headerCode: '', footerCode: '', seo: DEFAULT_SEO, socials: {} };
       cache.settings = fetchWithFallback('settings', fallback).then(settings => {
            if (!settings.seo) settings.seo = DEFAULT_SEO;
            return settings;
@@ -253,14 +242,13 @@ export const dataManager = {
       invalidateCache('settings');
   },
 
-  // SEO Files (Robots.txt & Sitemap)
+  // SEO Files
   getSeoFiles: async (): Promise<{ robots_txt: string; sitemap_xml: string }> => {
       try {
           const res = await fetch(`${API_URL}/seo-files`);
           if (!res.ok) throw new Error('Failed to fetch seo files');
           return await res.json();
       } catch (e) {
-          console.warn("Failed to get SEO files, using empty defaults", e);
           return { robots_txt: '', sitemap_xml: '' };
       }
   },

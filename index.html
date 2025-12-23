@@ -4,23 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
-    <!-- SEO Placeholders for Server-Side Injection -->
     <title>Valstand | Маркетинговое Агентство</title>
-    <meta name="description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии. Современные решения для роста вашего бизнеса." />
-    <meta name="keywords" content="маркетинг, агентство, продвижение, реклама" />
+    <meta name="description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии. Современные решения для роста вашего бизнеса.">
+    <meta name="keywords" content="маркетинг, агентство, продвижение, реклама">
     
-    <!-- Open Graph / Social Media -->
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Valstand | Маркетинговое Агентство" />
-    <meta property="og:description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии." />
-    <meta property="og:image" content="/logo.png" />
-    <meta property="og:url" content="https://valstand.ru" />
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Valstand | Маркетинговое Агентство">
+    <meta property="og:description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии.">
+    <meta property="og:image" content="https://valstand.ru/logo.png">
+    <meta property="og:url" content="https://valstand.ru">
 
     <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Valstand | Маркетинговое Агентство" />
-    <meta name="twitter:description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии." />
-    <meta name="twitter:image" content="/logo.png" />
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Valstand | Маркетинговое Агентство">
+    <meta name="twitter:description" content="Комплексное маркетинговое агентство: Таргет, SEO, Контент-стратегии.">
+    <meta name="twitter:image" content="https://valstand.ru/logo.png">
 
     <link rel="icon" href="/favicon_val.svg" type="image/svg+xml">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,9 +28,7 @@
       tailwind.config = {
         theme: {
           extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            },
+            fontFamily: { sans: ['Inter', 'sans-serif'] },
             colors: {
               brand: {
                 yellow: '#FFB800',
@@ -74,26 +71,12 @@
     </style>
     
     <script>
-      window.addEventListener('error', function(event) {
-        var overlay = document.getElementById('error-overlay');
-        var loader = document.getElementById('initial-loader');
-        if (overlay && loader) {
-           loader.style.display = 'none';
-           overlay.style.display = 'block';
-           var msg = document.createElement('div');
-           msg.innerHTML = '<h3>Critical Error</h3><p>' + event.message + '</p><p>File: ' + event.filename + ':' + event.lineno + '</p><hr>';
-           overlay.appendChild(msg);
-        }
-      });
       window.onload = function() {
           setTimeout(function(){
-              var root = document.getElementById('root');
-              if(root && root.innerHTML.trim() === '') {
-                 console.warn("React root is empty after timeout");
-              } else {
-                 var loader = document.getElementById('initial-loader');
-                 if(loader) loader.style.opacity = '0';
-                 setTimeout(function(){ if(loader) loader.style.display='none'; }, 500);
+              var loader = document.getElementById('initial-loader');
+              if(loader) {
+                loader.style.opacity = '0';
+                setTimeout(function(){ loader.style.display='none'; }, 500);
               }
           }, 1000);
       }
@@ -124,10 +107,7 @@
     <div id="initial-loader"><div class="loader-spinner"></div></div>
     <div id="error-overlay">
         <h1>Не удалось запустить приложение</h1>
-        <p>Если вы видите этот экран, значит произошла ошибка при загрузке JavaScript кода.</p>
-        <p>Попробуйте обновить страницу с очисткой кэша (Ctrl + F5).</p>
         <hr/>
-        <p>Техническая информация:</p>
     </div>
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>

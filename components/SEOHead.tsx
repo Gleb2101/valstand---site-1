@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { dataManager } from '../services/dataManager';
 
 interface SEOHeadProps {
@@ -9,73 +8,80 @@ interface SEOHeadProps {
 }
 
 const SEOHead: React.FC<SEOHeadProps> = ({ pageKey, dynamicTitle, dynamicDescription }) => {
+  const isFirstLoad = useRef(true);
+
   useEffect(() => {
     const load = async () => {
         const settings = await dataManager.getSettings();
-        const seoConfig = settings.seo[pageKey];
+        
+        // If we have dynamic content (like a blog post title), it usually comes from App.tsx logic
+        // We prioritize Admin SEO config -> Dynamic Title -> Site Default
+        const seoConfig = settings.seo?.[pageKey];
 
-        // --- 1. Title ---
-        let title = 'Valstand Agency';
+        let title = '';
         if (seoConfig && seoConfig.title && seoConfig.title.trim() !== '') {
-        title = seoConfig.title;
+            title = seoConfig.title;
         } else if (dynamicTitle) {
-        title = `${dynamicTitle} | Valstand`;
-        }
-        document.title = title;
-
-        // --- 2. Description ---
-        let description = '';
-        if (seoConfig && seoConfig.description && seoConfig.description.trim() !== '') {
-        description = seoConfig.description;
-        } else if (dynamicDescription) {
-        description = dynamicDescription;
+            title = `${dynamicTitle} | Valstand`;
         }
 
-        // --- 3. Keywords & Image ---
+        // ONLY update the title if we actually found a specific configuration
+        // This prevents overwriting the server-injected title with a "Valstand Agency" default during the first few ms
+        if (title) {
+            document.title = title;
+        } else if (isFirstLoad.current) {
+            // On first load, if no specific title is found, we assume the server-injected one is correct
+            isFirstLoad.current = false;
+        } else {
+            // If it's a client-side navigation and no title found, use default
+            document.title = 'Valstand | Маркетинговое Агентство';
+        }
+
+        // --- Meta Tags ---
+        const description = seoConfig?.description || dynamicDescription || '';
         const keywords = seoConfig?.keywords || '';
         const ogImage = seoConfig?.ogImage || '';
 
-        // --- 4. Favicon ---
-        if (settings.favicon) {
-            let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-            if (!link) {
-                link = document.createElement('link');
-                link.rel = 'icon';
-                document.head.appendChild(link);
-            }
-            link.href = settings.favicon;
-        }
-
-        // --- Helper to update or create meta tags ---
         const updateMeta = (nameOrProperty: string, content: string, isProperty = false) => {
-        const attr = isProperty ? 'property' : 'name';
-        let element = document.querySelector(`meta[${attr}="${nameOrProperty}"]`);
-        
-        if (content) {
-            if (!element) {
-            element = document.createElement('meta');
-            element.setAttribute(attr, nameOrProperty);
-            document.head.appendChild(element);
+            const attr = isProperty ? 'property' : 'name';
+            let element = document.querySelector(`meta[${attr}="${nameOrProperty}"]`);
+            
+            if (content) {
+                if (!element) {
+                    element = document.createElement('meta');
+                    element.setAttribute(attr, nameOrProperty);
+                    document.head.appendChild(element);
+                }
+                element.setAttribute('content', content);
             }
-            element.setAttribute('content', content);
-        } else if (element) {
-            element.remove();
-        }
         };
 
-        updateMeta('description', description);
-        updateMeta('keywords', keywords);
-        updateMeta('og:title', title, true);
-        updateMeta('og:description', description, true);
-        updateMeta('og:image', ogImage, true);
-        updateMeta('og:type', 'website', true);
-        updateMeta('twitter:card', 'summary_large_image');
-        updateMeta('twitter:title', title);
-        updateMeta('twitter:description', description);
-        if (ogImage) updateMeta('twitter:image', ogImage);
-    };
-    load();
+        if (description) {
+            updateMeta('description', description);
+            updateMeta('og:description', description, true);
+            updateMeta('twitter:description', description);
+        }
+        
+        if (keywords) updateMeta('keywords', keywords);
+        
+        if (title) {
+            updateMeta('og:title', title, true);
+            updateMeta('twitter:title', title);
+        }
 
+        if (ogImage) {
+            updateMeta('og:image', ogImage, true);
+            updateMeta('twitter:image', ogImage);
+        }
+
+        // Favicon
+        if (settings.favicon) {
+            let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+            if (link) link.href = settings.favicon;
+        }
+    };
+    
+    load();
   }, [pageKey, dynamicTitle, dynamicDescription]);
 
   return null;

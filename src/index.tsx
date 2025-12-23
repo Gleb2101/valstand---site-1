@@ -1,2 +1,1 @@
-// This file was detected as a duplicate causing build errors. 
-// The application entry point is at the project root (index.tsx).
+/* This file is a duplicate of the root index.tsx and is cleared to prevent build conflicts. */
