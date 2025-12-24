@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package, ExternalLink, Calendar, Star, Clock } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package, ExternalLink, Calendar, Star, Clock, List, ArrowUp, ArrowDown } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem, ServicePackage } from '../types';
 import { PACKAGES, SERVICES, CASES, TEAM_MEMBERS, TESTIMONIALS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
@@ -146,6 +147,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           setEditingService(null);
           setServicesData(await dataManager.getServices());
       }
+  };
+
+  const handleMoveService = async (index: number, direction: 'up' | 'down') => {
+    const newServices = [...servicesData];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newServices.length) return;
+
+    [newServices[index], newServices[targetIndex]] = [newServices[targetIndex], newServices[index]];
+    
+    // Update orderIndex
+    const updated = newServices.map((s, idx) => ({ ...s, orderIndex: idx }));
+    setServicesData(updated);
+    
+    for (const s of updated) {
+        await dataManager.saveService(s);
+    }
   };
 
   const handleSavePackage = async (e: React.FormEvent) => {
@@ -367,9 +384,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                         <div className="space-y-4">
                             <button onClick={() => setEditingService({ id: Date.now().toString(), title: '', description: '', icon: 'target', features: [], fullDescription: '', benefits: [], process: [], orderIndex: servicesData.length })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Добавить услугу</button>
                             <div className="grid gap-4">
-                                {servicesData.map(s => (
-                                    <div key={s.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange transition-colors">
+                                {servicesData.map((s, index) => (
+                                    <div key={s.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange transition-colors bg-white">
                                         <div className="flex items-center gap-4">
+                                            <div className="flex flex-col gap-1 mr-2">
+                                                <button onClick={() => handleMoveService(index, 'up')} disabled={index === 0} className="p-1 hover:bg-slate-100 rounded disabled:opacity-30"><ArrowUp size={14}/></button>
+                                                <button onClick={() => handleMoveService(index, 'down')} disabled={index === servicesData.length - 1} className="p-1 hover:bg-slate-100 rounded disabled:opacity-30"><ArrowDown size={14}/></button>
+                                            </div>
                                             <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-brand-orange"><Target size={20}/></div>
                                             <div><h4 className="font-bold">{s.title}</h4><p className="text-xs text-slate-500 truncate max-w-md">{s.description}</p></div>
                                         </div>
@@ -382,18 +403,103 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             </div>
                         </div>
                     ) : (
-                        <form onSubmit={handleSaveService} className="space-y-6">
+                        <form onSubmit={handleSaveService} className="space-y-6 max-w-5xl">
                             <div className="flex justify-between items-center border-b pb-4">
                                 <h3 className="text-xl font-bold">Редактирование: {editingService.title || 'Новая услуга'}</h3>
                                 <button type="button" onClick={() => setEditingService(null)} className="text-slate-400 hover:text-slate-600"><X/></button>
                             </div>
+                            
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-bold mb-1">ID (URL-slug)</label><input className="w-full p-2 border rounded" value={editingService.id} onChange={e => setEditingService({...editingService, id: e.target.value})} required /></div>
                                 <div><label className="block text-sm font-bold mb-1">Название</label><input className="w-full p-2 border rounded" value={editingService.title} onChange={e => setEditingService({...editingService, title: e.target.value})} required /></div>
                             </div>
+                            
                             <div><label className="block text-sm font-bold mb-1">Короткий анонс</label><textarea className="w-full p-2 border rounded h-20" value={editingService.description} onChange={e => setEditingService({...editingService, description: e.target.value})} /></div>
+                            
+                            {/* Features Section */}
+                            <div className="bg-slate-50 p-4 rounded-xl border">
+                                <h4 className="font-bold mb-4 flex items-center gap-2 text-slate-700"><List size={18}/> Что входит в услугу</h4>
+                                <div className="space-y-2">
+                                    {(editingService.features || []).map((f, idx) => (
+                                        <div key={idx} className="flex gap-2">
+                                            <input className="flex-grow p-2 border rounded text-sm" value={f} onChange={e => {
+                                                const newFeatures = [...editingService.features];
+                                                newFeatures[idx] = e.target.value;
+                                                setEditingService({...editingService, features: newFeatures});
+                                            }} />
+                                            <button type="button" onClick={() => setEditingService({...editingService, features: editingService.features.filter((_, i) => i !== idx)})} className="text-red-500 p-2 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
+                                        </div>
+                                    ))}
+                                    <button type="button" onClick={() => setEditingService({...editingService, features: [...(editingService.features || []), '']})} className="text-sm font-bold text-brand-orange flex items-center gap-1 hover:underline"><Plus size={16}/> Добавить пункт</button>
+                                </div>
+                            </div>
+
+                            {/* Benefits Section */}
+                            <div className="bg-slate-50 p-4 rounded-xl border">
+                                <h4 className="font-bold mb-4 flex items-center gap-2 text-slate-700"><Star size={18}/> Преимущества (Benefits)</h4>
+                                <div className="grid gap-4">
+                                    {(editingService.benefits || []).map((b, idx) => (
+                                        <div key={idx} className="p-4 bg-white border rounded-lg relative">
+                                            <button type="button" onClick={() => setEditingService({...editingService, benefits: editingService.benefits.filter((_, i) => i !== idx)})} className="absolute top-2 right-2 text-red-500 p-1 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
+                                            <div className="space-y-2">
+                                                <input placeholder="Заголовок преимущества" className="w-full p-2 border rounded text-sm font-bold" value={b.title} onChange={e => {
+                                                    const newBenefits = [...editingService.benefits];
+                                                    newBenefits[idx] = { ...newBenefits[idx], title: e.target.value };
+                                                    setEditingService({...editingService, benefits: newBenefits});
+                                                }} />
+                                                <textarea placeholder="Описание" className="w-full p-2 border rounded text-sm h-16" value={b.desc} onChange={e => {
+                                                    const newBenefits = [...editingService.benefits];
+                                                    newBenefits[idx] = { ...newBenefits[idx], desc: e.target.value };
+                                                    setEditingService({...editingService, benefits: newBenefits});
+                                                }} />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <button type="button" onClick={() => setEditingService({...editingService, benefits: [...(editingService.benefits || []), {title: '', desc: ''}]})} className="text-sm font-bold text-brand-orange flex items-center gap-1 hover:underline"><Plus size={16}/> Добавить преимущество</button>
+                                </div>
+                            </div>
+
+                            {/* Process Section */}
+                            <div className="bg-slate-50 p-4 rounded-xl border">
+                                <h4 className="font-bold mb-4 flex items-center gap-2 text-slate-700"><Clock size={18}/> Этапы работы (Process)</h4>
+                                <div className="space-y-4">
+                                    {(editingService.process || []).map((p, idx) => (
+                                        <div key={idx} className="p-4 bg-white border rounded-lg space-y-3">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-slate-400">ШАГ {idx + 1}</span>
+                                                <button type="button" onClick={() => setEditingService({...editingService, process: editingService.process.filter((_, i) => i !== idx)})} className="text-red-500 p-1 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
+                                            </div>
+                                            <div className="grid md:grid-cols-2 gap-3">
+                                                <input placeholder="Название этапа" className="w-full p-2 border rounded text-sm font-bold" value={p.step} onChange={e => {
+                                                    const newProc = [...editingService.process];
+                                                    newProc[idx] = { ...newProc[idx], step: e.target.value };
+                                                    setEditingService({...editingService, process: newProc});
+                                                }} />
+                                                <input placeholder="Краткая подпись" className="w-full p-2 border rounded text-sm" value={p.desc} onChange={e => {
+                                                    const newProc = [...editingService.process];
+                                                    newProc[idx] = { ...newProc[idx], desc: e.target.value };
+                                                    setEditingService({...editingService, process: newProc});
+                                                }} />
+                                            </div>
+                                            <textarea placeholder="Детальное описание этапа" className="w-full p-2 border rounded text-sm h-24" value={p.details || ''} onChange={e => {
+                                                const newProc = [...editingService.process];
+                                                newProc[idx] = { ...newProc[idx], details: e.target.value };
+                                                setEditingService({...editingService, process: newProc});
+                                            }} />
+                                            <ImagePicker label="Изображение примера" value={p.exampleImage || ''} onChange={url => {
+                                                const newProc = [...editingService.process];
+                                                newProc[idx] = { ...newProc[idx], exampleImage: url };
+                                                setEditingService({...editingService, process: newProc});
+                                            }} />
+                                        </div>
+                                    ))}
+                                    <button type="button" onClick={() => setEditingService({...editingService, process: [...(editingService.process || []), {step: '', desc: '', details: '', exampleImage: ''}]})} className="text-sm font-bold text-brand-orange flex items-center gap-1 hover:underline"><Plus size={16}/> Добавить шаг процесса</button>
+                                </div>
+                            </div>
+
                             <div><label className="block text-sm font-bold mb-1">Полный текст (Rich Text)</label><RichTextEditor content={editingService.fullDescription} onChange={html => setEditingService({...editingService, fullDescription: html})} /></div>
-                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingService(null)} className="px-6 py-2 border rounded font-bold">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded font-bold">Сохранить</button></div>
+                            
+                            <div className="flex justify-end gap-3 pt-6 border-t"><button type="button" onClick={() => setEditingService(null)} className="px-6 py-2 border rounded font-bold">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded font-bold">Сохранить</button></div>
                         </form>
                     )}
                 </div>
@@ -604,6 +710,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             <div className="grid grid-cols-2 gap-4">
                                 <div><label className="text-xs text-slate-500">Telegram</label><input className="w-full p-2 border rounded text-sm" value={settings.socials?.telegram || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, telegram: e.target.value}})} /></div>
                                 <div><label className="text-xs text-slate-500">VK</label><input className="w-full p-2 border rounded text-sm" value={settings.socials?.vk || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vk: e.target.value}})} /></div>
+                                <div><label className="text-xs text-slate-500">VC.ru</label><input className="w-full p-2 border rounded text-sm" value={settings.socials?.vc || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vc: e.target.value}})} /></div>
+                                <div><label className="text-xs text-slate-500">Tinkoff Journal (TJ)</label><input className="w-full p-2 border rounded text-sm" value={settings.socials?.tj || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, tj: e.target.value}})} /></div>
                             </div>
                         </div>
                     </div>
