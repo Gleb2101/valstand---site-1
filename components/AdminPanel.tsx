@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package, ExternalLink, Calendar, Star, Clock, List, ArrowUp, ArrowDown } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package, ExternalLink, Calendar, Star, Clock, List, ArrowUp, ArrowDown, Smile } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem, ServicePackage } from '../types';
 import { PACKAGES, SERVICES, CASES, TEAM_MEMBERS, TESTIMONIALS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
@@ -391,7 +391,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                                 <button onClick={() => handleMoveService(index, 'up')} disabled={index === 0} className="p-1 hover:bg-slate-100 rounded disabled:opacity-30"><ArrowUp size={14}/></button>
                                                 <button onClick={() => handleMoveService(index, 'down')} disabled={index === servicesData.length - 1} className="p-1 hover:bg-slate-100 rounded disabled:opacity-30"><ArrowDown size={14}/></button>
                                             </div>
-                                            <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-brand-orange"><Target size={20}/></div>
+                                            <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-brand-orange">
+                                                {s.icon && (s.icon.startsWith('http') || s.icon.startsWith('data:')) ? (
+                                                    <img src={s.icon} className="w-6 h-6 object-contain" alt="" />
+                                                ) : (
+                                                    <Target size={20}/>
+                                                )}
+                                            </div>
                                             <div><h4 className="font-bold">{s.title}</h4><p className="text-xs text-slate-500 truncate max-w-md">{s.description}</p></div>
                                         </div>
                                         <div className="flex gap-2">
@@ -412,6 +418,31 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                             <div className="grid md:grid-cols-2 gap-4">
                                 <div><label className="block text-sm font-bold mb-1">ID (URL-slug)</label><input className="w-full p-2 border rounded" value={editingService.id} onChange={e => setEditingService({...editingService, id: e.target.value})} required /></div>
                                 <div><label className="block text-sm font-bold mb-1">Название</label><input className="w-full p-2 border rounded" value={editingService.title} onChange={e => setEditingService({...editingService, title: e.target.value})} required /></div>
+                            </div>
+
+                            {/* Icon Selection UI Update */}
+                            <div className="bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300">
+                                <h4 className="font-bold text-sm mb-3">Иконка услуги</h4>
+                                <div className="flex gap-4">
+                                    <div className="w-20 h-20 bg-white border rounded-lg flex items-center justify-center overflow-hidden">
+                                        {editingService.icon && (editingService.icon.startsWith('http') || editingService.icon.startsWith('data:')) ? (
+                                            <img src={editingService.icon} className="w-full h-full object-contain" />
+                                        ) : (
+                                            <div className="text-slate-300 flex flex-col items-center">
+                                                <Target size={32} />
+                                                <span className="text-[10px] mt-1 uppercase">{editingService.icon || 'default'}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-grow space-y-2">
+                                        <ImagePicker 
+                                            label="Выберите загруженную иконку или введите ID Lucide" 
+                                            value={editingService.icon} 
+                                            onChange={val => setEditingService({...editingService, icon: val})} 
+                                        />
+                                        <p className="text-[10px] text-slate-400 italic">ID для стандартных: target, search, share, code, palette, chart</p>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div><label className="block text-sm font-bold mb-1">Короткий анонс</label><textarea className="w-full p-2 border rounded h-20" value={editingService.description} onChange={e => setEditingService({...editingService, description: e.target.value})} /></div>
@@ -727,7 +758,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
             )}
 
             {/* MEDIA */}
-            {activeTab === 'media' && <div className="h-[700px]"><MediaLibrary /></div>}
+            {activeTab === 'media' && (
+                <div className="h-[700px] flex flex-col gap-6">
+                    {/* Media category switcher */}
+                    <div className="flex items-center gap-4 bg-slate-100 p-1 rounded-xl w-fit">
+                        <button className="px-4 py-2 bg-white shadow-sm rounded-lg font-bold text-sm">Общая библиотека</button>
+                        <div className="text-slate-300">|</div>
+                        <div className="flex items-center gap-2 px-4 py-2 text-slate-500 text-sm italic">
+                            <Smile size={16} /> Используйте загрузчик для добавления новых иконок услуг
+                        </div>
+                    </div>
+                    <MediaLibrary />
+                </div>
+            )}
 
             {/* BLOG */}
             {activeTab === 'blog' && (

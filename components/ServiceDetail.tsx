@@ -1,8 +1,17 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, CheckCircle, Zap, Image as ImageIcon, ChevronDown, ChevronUp, ArrowRight, Briefcase } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Zap, Image as ImageIcon, ChevronDown, ChevronUp, ArrowRight, Briefcase, Target, Search, Share2, Code, Palette, PieChart, Box } from 'lucide-react';
 import { ServiceItem, CaseStudy } from '../types';
 import ContactForm from './ContactForm';
+
+const iconMap: Record<string, React.ReactNode> = {
+  target: <Target size={40} />,
+  search: <Search size={40} />,
+  share: <Share2 size={40} />,
+  code: <Code size={40} />,
+  palette: <Palette size={40} />,
+  chart: <PieChart size={40} />,
+};
 
 interface ServiceDetailProps {
   service: ServiceItem;
@@ -17,6 +26,17 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
 
   const toggleStep = (index: number) => {
     setExpandedStepIndex(expandedStepIndex === index ? null : index);
+  };
+
+  const renderTitleIcon = () => {
+    const iconKey = service.icon;
+    if (!iconKey) return null;
+    
+    if (iconKey.startsWith('http') || iconKey.startsWith('data:') || iconKey.startsWith('/')) {
+        return <img src={iconKey} alt="" className="w-12 h-12 object-contain mr-4" />;
+    }
+    
+    return <div className="text-brand-orange mr-4">{iconMap[iconKey] || <Box size={40} />}</div>;
   };
 
   const defaultProcessText = `На данном этапе мы действуем согласно принципам полной прозрачности и методологии Agile. 
@@ -47,9 +67,12 @@ const ServiceDetail: React.FC<ServiceDetailProps> = ({ service, onBack, onNaviga
       <section className="relative overflow-hidden py-12 md:py-20">
         <div className="absolute top-0 right-0 w-1/3 h-full bg-brand-yellow/10 skew-x-12 transform origin-top blur-3xl -z-10"></div>
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl md:text-6xl font-bold text-slate-900 mb-8">
-            {service.title}
-          </h1>
+          <div className="flex items-center mb-8">
+            {renderTitleIcon()}
+            <h1 className="text-4xl md:text-6xl font-bold text-slate-900">
+                {service.title}
+            </h1>
+          </div>
           <div 
             className="prose prose-lg prose-slate max-w-none text-slate-600 border-l-4 border-brand-orange pl-6"
             dangerouslySetInnerHTML={{ __html: service.fullDescription || service.description }}

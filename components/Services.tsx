@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Target, Search, Share2, Code, ArrowRight, ArrowUpRight, Palette, PieChart, Box } from 'lucide-react';
 import Packages from './Packages';
@@ -26,6 +27,18 @@ interface ServicesProps {
 }
 
 const Services: React.FC<ServicesProps> = ({ services, packages, onSelectService, onQuickOrder, isHomePreview = false, onViewPackage }) => {
+  
+  const renderIcon = (iconKey: string) => {
+    if (!iconKey) return DefaultIcon;
+    
+    // Check if it's a URL or base64 data
+    if (iconKey.startsWith('http') || iconKey.startsWith('data:') || iconKey.startsWith('/')) {
+        return <img src={iconKey} alt="" className="w-8 h-8 object-contain" />;
+    }
+    
+    return iconMap[iconKey] || DefaultIcon;
+  };
+
   return (
     <>
       <section id="services" className={`bg-slate-50 relative ${isHomePreview ? 'py-24' : 'py-12 pb-24'}`}>
@@ -48,7 +61,7 @@ const Services: React.FC<ServicesProps> = ({ services, packages, onSelectService
                   className="group glass-panel p-8 rounded-2xl hover:bg-white transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col h-full"
                 >
                   <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center text-brand-orange mb-6 group-hover:scale-110 transition-transform duration-300 border border-slate-200">
-                    {iconMap[service.icon] || DefaultIcon}
+                    {renderIcon(service.icon)}
                   </div>
                   
                   <h3 className="text-xl font-bold text-slate-900 mb-3 group-hover:text-brand-orange transition-colors">
