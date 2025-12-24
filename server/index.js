@@ -115,6 +115,95 @@ app.post('/api/settings', dbCheck, async (req, res) => {
     res.json({ success: true });
 });
 
+// --- DYNAMIC SEO FILES ---
+
+app.get('/robots.txt', (req, res) => {
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const robots = `User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+Sitemap: ${protocol}://${host}/sitemap.xml`;
+    res.type('text/plain');
+    res.send(robots);
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+    const host = req.get('host');
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const siteUrl = `${protocol}://${host}`;
+    const now = new Date().toISOString().split('T')[0];
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+
+    // Static Pages
+    const staticPages = ['', '/services', '/cases', '/blog', '/about', '/contact', '/privacy'];
+    staticPages.forEach(p => {
+        xml += `
+  <url>
+    <loc>${siteUrl}${p}</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>${p === '' ? '1.0' : '0.8'}</priority>
+  </url>`;
+    });
+
+    if (pool) {
+        try {
+            // Services
+            const [services] = await pool.query('SELECT id FROM services');
+            services.forEach(s => {
+                xml += `
+  <url>
+    <loc>${siteUrl}/services/${s.id}</loc>
+    <lastmod>${now}</lastmod>
+    <priority>0.7</priority>
+  </url>`;
+            });
+
+            // Packages
+            const [packages] = await pool.query('SELECT id FROM packages');
+            packages.forEach(p => {
+                xml += `
+  <url>
+    <loc>${siteUrl}/packages/${p.id}</loc>
+    <lastmod>${now}</lastmod>
+    <priority>0.7</priority>
+  </url>`;
+            });
+
+            // Cases
+            const [cases] = await pool.query('SELECT id FROM cases');
+            cases.forEach(c => {
+                xml += `
+  <url>
+    <loc>${siteUrl}/cases/${c.id}</loc>
+    <lastmod>${now}</lastmod>
+    <priority>0.6</priority>
+  </url>`;
+            });
+
+            // Blog
+            const [posts] = await pool.query('SELECT id FROM blog_posts');
+            posts.forEach(b => {
+                xml += `
+  <url>
+    <loc>${siteUrl}/blog/${b.id}</loc>
+    <lastmod>${now}</lastmod>
+    <priority>0.6</priority>
+  </url>`;
+            });
+        } catch (e) { console.error("Sitemap generation error", e); }
+    }
+
+    xml += `\n</urlset>`;
+    res.type('application/xml');
+    res.send(xml);
+});
+
 // --- STATIC FILES & PURE SERVER-SIDE SEO ---
 app.use(express.static(distPath, { index: false }));
 
@@ -181,10 +270,8 @@ app.get('*', async (req, res) => {
     } catch (e) { console.error("SEO Error:", e); }
 
     // --- REPLACEMENT ENGINE ---
-    // Title
     html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${seo.title}</title>`);
     
-    // Function for clean meta replacement
     const injectMeta = (htmlContent, attrName, attrVal, content) => {
         const regex = new RegExp(`<meta\\s+[^>]*?${attrName}=["']${attrVal}["'][^>]*?>`, "i");
         const newTag = `<meta ${attrName}="${attrVal}" content="${content}">`;
@@ -197,14 +284,10 @@ app.get('*', async (req, res) => {
 
     html = injectMeta(html, 'name', 'description', seo.description);
     html = injectMeta(html, 'name', 'keywords', seo.keywords);
-    
-    // Open Graph (Absolute priority for messengers)
     html = injectMeta(html, 'property', 'og:title', seo.title);
     html = injectMeta(html, 'property', 'og:description', seo.description);
     html = injectMeta(html, 'property', 'og:image', seo.ogImage);
     html = injectMeta(html, 'property', 'og:url', fullUrl);
-    
-    // Twitter
     html = injectMeta(html, 'name', 'twitter:title', seo.title);
     html = injectMeta(html, 'name', 'twitter:description', seo.description);
     html = injectMeta(html, 'name', 'twitter:image', seo.ogImage);
