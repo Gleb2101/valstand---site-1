@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package, ExternalLink, Calendar } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package, ExternalLink, Calendar, Star, Clock } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem, ServicePackage } from '../types';
 import { PACKAGES, SERVICES, CASES, TEAM_MEMBERS, TESTIMONIALS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
@@ -202,16 +202,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     }
   };
 
-  // Add handleSaveSettings fix here
-  /* Fix: Added missing handleSaveSettings function to handle site settings form submission and resolve 'Cannot find name' error */
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await dataManager.saveSettings(settings);
       alert('Настройки успешно сохранены!');
     } catch (error) {
-      console.error(error);
-      alert('Ошибка при сохранении настроек.');
+      alert('Ошибка при сохранении.');
     }
   };
 
@@ -288,7 +285,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
           <TabButton id="packages" label="Пакеты" icon={Package} />
           <TabButton id="blog" label="Блог" icon={FileText} />
           <TabButton id="cases" label="Кейсы" icon={Briefcase} />
-          <TabButton id="reviews" label="Отзывы" icon={Users} />
+          <TabButton id="reviews" label="Отзывы" icon={Star} />
           <TabButton id="team" label="Команда" icon={Users} />
           <TabButton id="popups" label="Попапы" icon={Layers} />
           <TabButton id="seo" label="SEO" icon={Search} />
@@ -310,7 +307,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                     </div>
                     <div className="p-6 bg-slate-50 rounded-xl border border-slate-200">
                         <div className="flex items-center gap-4 mb-4"><Database className="text-slate-700" size={24} /><h3 className="text-xl font-bold text-slate-900">Инициализация БД</h3></div>
-                        <p className="text-slate-600 mb-4">Если база данных пуста, вы можете загрузить стандартный контент (кейсы, услуги, отзывы) одним кликом.</p>
+                        <p className="text-slate-600 mb-4">Если база данных пуста, вы можете загрузить стандартный контент одним кликом.</p>
                         <button onClick={handleSyncData} disabled={syncing} className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 disabled:opacity-50">{syncing ? <RefreshCw className="animate-spin" /> : <Save />} {syncing ? 'Синхронизация...' : 'Загрузить демо-данные'}</button>
                     </div>
                 </div>
@@ -391,12 +388,55 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                 <button type="button" onClick={() => setEditingService(null)} className="text-slate-400 hover:text-slate-600"><X/></button>
                             </div>
                             <div className="grid md:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-bold mb-1">ID (латиницей)</label><input className="w-full p-2 border rounded" value={editingService.id} onChange={e => setEditingService({...editingService, id: e.target.value})} required /></div>
+                                <div><label className="block text-sm font-bold mb-1">ID (URL-slug)</label><input className="w-full p-2 border rounded" value={editingService.id} onChange={e => setEditingService({...editingService, id: e.target.value})} required /></div>
                                 <div><label className="block text-sm font-bold mb-1">Название</label><input className="w-full p-2 border rounded" value={editingService.title} onChange={e => setEditingService({...editingService, title: e.target.value})} required /></div>
                             </div>
-                            <div><label className="block text-sm font-bold mb-1">Краткое описание</label><textarea className="w-full p-2 border rounded h-20" value={editingService.description} onChange={e => setEditingService({...editingService, description: e.target.value})} /></div>
+                            <div><label className="block text-sm font-bold mb-1">Короткий анонс</label><textarea className="w-full p-2 border rounded h-20" value={editingService.description} onChange={e => setEditingService({...editingService, description: e.target.value})} /></div>
                             <div><label className="block text-sm font-bold mb-1">Полный текст (Rich Text)</label><RichTextEditor content={editingService.fullDescription} onChange={html => setEditingService({...editingService, fullDescription: html})} /></div>
                             <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingService(null)} className="px-6 py-2 border rounded font-bold">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded font-bold">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* PACKAGES */}
+            {activeTab === 'packages' && (
+                <div>
+                    {!editingPackage ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingPackage({ id: Date.now().toString(), title: '', subtitle: '', price: '', description: '', features: [], fullDescription: '', timeline: '', benefits: [], detailedFeatures: [] })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Создать пакет</button>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {packagesData.map(p => (
+                                    <div key={p.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange transition-colors">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-brand-orange"><Package size={20}/></div>
+                                            <div><h4 className="font-bold">{p.title}</h4><p className="text-xs text-brand-orange font-bold">{p.price}</p></div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingPackage(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deletePackage(p.id); setPackagesData(await dataManager.getPackages()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSavePackage} className="space-y-6">
+                            <div className="flex justify-between items-center border-b pb-4">
+                                <h3 className="text-xl font-bold">Пакет: {editingPackage.title || 'Новый'}</h3>
+                                <button type="button" onClick={() => setEditingPackage(null)} className="text-slate-400 hover:text-slate-600"><X/></button>
+                            </div>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <div><label className="block text-sm font-bold mb-1">Название</label><input className="w-full p-2 border rounded" value={editingPackage.title} onChange={e => setEditingPackage({...editingPackage, title: e.target.value})} /></div>
+                                <div><label className="block text-sm font-bold mb-1">Подзаголовок</label><input className="w-full p-2 border rounded" value={editingPackage.subtitle} onChange={e => setEditingPackage({...editingPackage, subtitle: e.target.value})} /></div>
+                                <div><label className="block text-sm font-bold mb-1">Цена</label><input className="w-full p-2 border rounded" value={editingPackage.price} onChange={e => setEditingPackage({...editingPackage, price: e.target.value})} /></div>
+                            </div>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div><label className="block text-sm font-bold mb-1">Срок выполнения</label><input className="w-full p-2 border rounded" value={editingPackage.timeline} onChange={e => setEditingPackage({...editingPackage, timeline: e.target.value})} placeholder="10-14 дней" /></div>
+                                <div className="flex items-center pt-6"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={editingPackage.isPopular} onChange={e => setEditingPackage({...editingPackage, isPopular: e.target.checked})} /> <span className="text-sm font-bold">Хит продаж (яркая карточка)</span></label></div>
+                            </div>
+                            <div><label className="block text-sm font-bold mb-1">Описание (Rich Text)</label><RichTextEditor content={editingPackage.fullDescription} onChange={html => setEditingPackage({...editingPackage, fullDescription: html})} /></div>
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingPackage(null)} className="px-6 py-2 border rounded font-bold">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded font-bold">Сохранить пакет</button></div>
                         </form>
                     )}
                 </div>
@@ -441,20 +481,158 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                 </div>
             )}
 
+            {/* REVIEWS */}
+            {activeTab === 'reviews' && (
+                <div>
+                    {!editingReview ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingReview({ id: Date.now(), name: '', role: '', company: '', text: '', avatar: '' })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Добавить отзыв</button>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {reviews.map(r => (
+                                    <div key={r.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange">
+                                        <div className="flex items-center gap-4">
+                                            <img src={r.avatar} className="w-12 h-12 rounded-full object-cover" />
+                                            <div><h4 className="font-bold">{r.name}</h4><p className="text-xs text-slate-500">{r.company}</p></div>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingReview(r)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deleteTestimonial(r.id); setReviews(await dataManager.getTestimonials()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSaveReview} className="space-y-6">
+                            <h3 className="text-xl font-bold">Отзыв клиента</h3>
+                            <ImagePicker label="Фото клиента" value={editingReview.avatar} onChange={url => setEditingReview({...editingReview, avatar: url})} />
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <div><label className="block text-sm font-bold mb-1">Имя</label><input className="w-full p-2 border rounded" value={editingReview.name} onChange={e => setEditingReview({...editingReview, name: e.target.value})} /></div>
+                                <div><label className="block text-sm font-bold mb-1">Должность</label><input className="w-full p-2 border rounded" value={editingReview.role} onChange={e => setEditingReview({...editingReview, role: e.target.value})} /></div>
+                                <div><label className="block text-sm font-bold mb-1">Компания</label><input className="w-full p-2 border rounded" value={editingReview.company} onChange={e => setEditingReview({...editingReview, company: e.target.value})} /></div>
+                            </div>
+                            <div><label className="block text-sm font-bold mb-1">Текст отзыва</label><textarea className="w-full p-2 border rounded h-32" value={editingReview.text} onChange={e => setEditingReview({...editingReview, text: e.target.value})} /></div>
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingReview(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* TEAM */}
+            {activeTab === 'team' && (
+                <div>
+                    {!editingMember ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingMember({ id: Date.now().toString(), name: '', role: '', description: '', image: '' })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Добавить в команду</button>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                {team.map(m => (
+                                    <div key={m.id} className="p-4 border rounded-xl flex flex-col items-center hover:border-brand-orange">
+                                        <img src={m.image} className="w-24 h-24 rounded-full object-cover mb-4" />
+                                        <h4 className="font-bold">{m.name}</h4>
+                                        <p className="text-xs text-brand-orange uppercase mb-4">{m.role}</p>
+                                        <div className="flex gap-2 w-full justify-center pt-4 border-t">
+                                            <button onClick={() => setEditingMember(m)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deleteTeamMember(m.id); setTeam(await dataManager.getTeam()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSaveTeam} className="space-y-6">
+                            <h3 className="text-xl font-bold">Участник команды</h3>
+                            <ImagePicker label="Фото" value={editingMember.image} onChange={url => setEditingMember({...editingMember, image: url})} />
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div><label className="block text-sm font-bold mb-1">Имя</label><input className="w-full p-2 border rounded" value={editingMember.name} onChange={e => setEditingMember({...editingMember, name: e.target.value})} /></div>
+                                <div><label className="block text-sm font-bold mb-1">Должность</label><input className="w-full p-2 border rounded" value={editingMember.role} onChange={e => setEditingMember({...editingMember, role: e.target.value})} /></div>
+                            </div>
+                            <div><label className="block text-sm font-bold mb-1">О себе (коротко)</label><textarea className="w-full p-2 border rounded h-24" value={editingMember.description} onChange={e => setEditingMember({...editingMember, description: e.target.value})} /></div>
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingMember(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* SEO */}
+            {activeTab === 'seo' && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="md:col-span-1 bg-slate-50 p-4 rounded-xl border h-fit">
+                        <h3 className="font-bold mb-4">Страницы</h3>
+                        <input placeholder="Поиск..." className="w-full p-2 mb-4 border rounded text-sm" value={seoSearch} onChange={e => setSeoSearch(e.target.value)} />
+                        <div className="space-y-1 max-h-[600px] overflow-y-auto">
+                            {filteredSeoPages.map(p => (
+                                <button key={p.key} onClick={() => setSelectedSeoPage(p.key)} className={`w-full text-left px-3 py-2 rounded text-sm truncate ${selectedSeoPage === p.key ? 'bg-brand-orange text-white' : 'hover:bg-slate-200'}`}>{p.label}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="md:col-span-3 space-y-8">
+                        <div className="p-4 bg-blue-50 text-blue-800 rounded-lg flex items-center gap-3 border border-blue-100">
+                            <FileCode size={20} />
+                            <div className="text-sm">
+                                <strong>Sitemap и Robots генерируются автоматически!</strong><br />
+                                Ссылки на все новые услуги, кейсы и статьи добавляются в карту сайта мгновенно.
+                            </div>
+                            <div className="flex gap-2 ml-auto">
+                                <a href="/sitemap.xml" target="_blank" className="p-2 bg-white rounded border hover:text-brand-orange" title="Открыть Sitemap"><ExternalLink size={16}/></a>
+                                <a href="/robots.txt" target="_blank" className="p-2 bg-white rounded border hover:text-brand-orange" title="Открыть Robots"><FileText size={16}/></a>
+                            </div>
+                        </div>
+
+                        <form onSubmit={(e) => { e.preventDefault(); dataManager.saveSettings(settings); alert('SEO сохранено'); }} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
+                            <h3 className="font-bold text-xl mb-4">SEO для: {filteredSeoPages.find(p => p.key === selectedSeoPage)?.label || selectedSeoPage}</h3>
+                            <div><label className="block text-sm font-bold text-slate-700 mb-1">Meta Title</label><input className="w-full p-2 border rounded" value={settings.seo[selectedSeoPage]?.title || ''} onChange={e => handleSeoChange(selectedSeoPage, 'title', e.target.value)} /></div>
+                            <div><label className="block text-sm font-bold text-slate-700 mb-1">Meta Description</label><textarea className="w-full p-2 border rounded h-24" value={settings.seo[selectedSeoPage]?.description || ''} onChange={e => handleSeoChange(selectedSeoPage, 'description', e.target.value)} /></div>
+                            <div><label className="block text-sm font-bold text-slate-700 mb-1">Keywords</label><input className="w-full p-2 border rounded" value={settings.seo[selectedSeoPage]?.keywords || ''} onChange={e => handleSeoChange(selectedSeoPage, 'keywords', e.target.value)} /></div>
+                            <ImagePicker label="OG Image (превью ссылки)" value={settings.seo[selectedSeoPage]?.ogImage || ''} onChange={url => handleSeoChange(selectedSeoPage, 'ogImage', url)} />
+                            <div className="pt-4 flex justify-end"><button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold flex items-center gap-2"><Save size={18}/> Сохранить мета-теги</button></div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* SETTINGS */}
+            {activeTab === 'settings' && (
+                <form onSubmit={handleSaveSettings} className="space-y-8">
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <h3 className="font-bold text-lg border-b pb-2">Общие настройки</h3>
+                            <ImagePicker label="Логотип сайта" value={settings.logo || ''} onChange={url => setSettings({...settings, logo: url})} />
+                            <ImagePicker label="Favicon" value={settings.favicon || ''} onChange={url => setSettings({...settings, favicon: url})} />
+                        </div>
+                        <div className="space-y-4">
+                            <h3 className="font-bold text-lg border-b pb-2">Соцсети</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className="text-xs text-slate-500">Telegram</label><input className="w-full p-2 border rounded text-sm" value={settings.socials?.telegram || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, telegram: e.target.value}})} /></div>
+                                <div><label className="text-xs text-slate-500">VK</label><input className="w-full p-2 border rounded text-sm" value={settings.socials?.vk || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vk: e.target.value}})} /></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <h3 className="font-bold text-lg border-b pb-2 flex items-center gap-2"><FileCode className="text-slate-400" size={20}/> Вставка кода (Метрика, Пиксели)</h3>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div><label className="block text-sm font-medium mb-1">Header (перед &lt;/head&gt;)</label><textarea className="w-full p-3 font-mono text-xs border rounded bg-slate-900 text-green-400 h-40" value={settings.headerCode} onChange={e => setSettings({...settings, headerCode: e.target.value})} placeholder="<script>...</script>" /></div>
+                            <div><label className="block text-sm font-medium mb-1">Footer (перед &lt;/body&gt;)</label><textarea className="w-full p-3 font-mono text-xs border rounded bg-slate-900 text-green-400 h-40" value={settings.footerCode} onChange={e => setSettings({...settings, footerCode: e.target.value})} placeholder="<script>...</script>" /></div>
+                        </div>
+                    </div>
+                    <div className="pt-6 border-t flex justify-end"><button type="submit" className="bg-slate-900 text-white px-10 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors"><Save size={20}/> Сохранить настройки</button></div>
+                </form>
+            )}
+
+            {/* MEDIA */}
+            {activeTab === 'media' && <div className="h-[700px]"><MediaLibrary /></div>}
+
             {/* BLOG */}
             {activeTab === 'blog' && (
                 <div>
                     {!editingPost ? (
                         <div className="space-y-4">
-                            <div className="flex justify-between">
-                                <button onClick={() => setEditingPost({ id: Date.now().toString(), title: '', excerpt: '', content: '', image: '', category: 'Маркетинг', date: new Date().toISOString().split('T')[0], author: 'Valstand' })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Написать статью</button>
-                            </div>
+                            <button onClick={() => setEditingPost({ id: Date.now().toString(), title: '', excerpt: '', content: '', image: '', category: 'Маркетинг', date: new Date().toISOString().split('T')[0], author: 'Valstand' })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Написать статью</button>
                             <div className="grid gap-4">
                                 {blogPosts.map(p => (
-                                    <div key={p.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange transition-colors">
+                                    <div key={p.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange">
                                         <div className="flex items-center gap-4">
                                             <img src={p.image} className="w-12 h-12 object-cover rounded" />
-                                            <div><h4 className="font-bold">{p.title}</h4><div className="flex gap-2 items-center text-[10px] text-slate-500"><Calendar size={10}/> {p.date} | {p.category}</div></div>
+                                            <div><h4 className="font-bold">{p.title}</h4><div className="flex gap-2 items-center text-[10px] text-slate-500"><Calendar size={10}/> {p.date}</div></div>
                                         </div>
                                         <div className="flex gap-2">
                                             <button onClick={() => setEditingPost(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
@@ -479,80 +657,49 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                     </select>
                                 </div>
                             </div>
-                            <div><label className="block text-sm font-bold mb-1">Анонс (кратко)</label><textarea className="w-full p-2 border rounded h-20" value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} /></div>
-                            <div><label className="block text-sm font-bold mb-1">Содержание</label><RichTextEditor content={editingPost.content} onChange={html => setEditingPost({...editingPost, content: html})} /></div>
-                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingPost(null)} className="px-6 py-2 border rounded font-bold">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded font-bold">Опубликовать</button></div>
+                            <div><label className="block text-sm font-bold mb-1">Анонс</label><textarea className="w-full p-2 border rounded h-20" value={editingPost.excerpt} onChange={e => setEditingPost({...editingPost, excerpt: e.target.value})} /></div>
+                            <div><label className="block text-sm font-bold mb-1">Текст статьи</label><RichTextEditor content={editingPost.content} onChange={html => setEditingPost({...editingPost, content: html})} /></div>
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingPost(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Опубликовать</button></div>
                         </form>
                     )}
                 </div>
             )}
 
-            {/* SEO */}
-            {activeTab === 'seo' && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="md:col-span-1 bg-slate-50 p-4 rounded-xl border h-fit">
-                        <h3 className="font-bold mb-4">Страницы</h3>
-                        <input placeholder="Поиск..." className="w-full p-2 mb-4 border rounded text-sm" value={seoSearch} onChange={e => setSeoSearch(e.target.value)} />
-                        <div className="space-y-1 max-h-[600px] overflow-y-auto">
-                            {filteredSeoPages.map(p => (
-                                <button key={p.key} onClick={() => setSelectedSeoPage(p.key)} className={`w-full text-left px-3 py-2 rounded text-sm truncate ${selectedSeoPage === p.key ? 'bg-brand-orange text-white' : 'hover:bg-slate-200'}`}>{p.label}</button>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="md:col-span-3 space-y-8">
-                        <div className="p-4 bg-blue-50 text-blue-800 rounded-lg flex items-center gap-3 border border-blue-100">
-                            <FileCode size={20} />
-                            <div className="text-sm">
-                                <strong>Sitemap и Robots генерируются автоматически!</strong><br />
-                                Вам больше не нужно редактировать их вручную. Все новые страницы добавляются в карту сайта мгновенно.
-                            </div>
-                            <div className="flex gap-2 ml-auto">
-                                <a href="/sitemap.xml" target="_blank" className="p-2 bg-white rounded border hover:text-brand-orange" title="Открыть Sitemap"><ExternalLink size={16}/></a>
-                                <a href="/robots.txt" target="_blank" className="p-2 bg-white rounded border hover:text-brand-orange" title="Открыть Robots"><FileText size={16}/></a>
+            {/* POPUPS */}
+            {activeTab === 'popups' && (
+                <div>
+                    {!editingPopup ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingPopup({ id: Date.now().toString(), title: '', text: '', hasForm: true, isActive: true, delaySeconds: 5 })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Создать попап</button>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {popups.map(p => (
+                                    <div key={p.id} className={`p-4 border rounded-xl flex items-center justify-between ${p.isActive ? 'border-brand-orange' : 'opacity-50'}`}>
+                                        <div><h4 className="font-bold">{p.title}</h4><p className="text-xs text-slate-500">Задержка: {p.delaySeconds} сек</p></div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingPopup(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deletePopup(p.id); setPopups(await dataManager.getPopups()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-
-                        <form onSubmit={(e) => { e.preventDefault(); dataManager.saveSettings(settings); alert('SEO сохранено'); }} className="bg-white p-6 rounded-xl border shadow-sm space-y-4">
-                            <h3 className="font-bold text-xl mb-4">SEO: {filteredSeoPages.find(p => p.key === selectedSeoPage)?.label || selectedSeoPage}</h3>
-                            <div><label className="block text-sm font-bold text-slate-700 mb-1">Meta Title</label><input className="w-full p-2 border rounded" value={settings.seo[selectedSeoPage]?.title || ''} onChange={e => handleSeoChange(selectedSeoPage, 'title', e.target.value)} /></div>
-                            <div><label className="block text-sm font-bold text-slate-700 mb-1">Meta Description</label><textarea className="w-full p-2 border rounded h-24" value={settings.seo[selectedSeoPage]?.description || ''} onChange={e => handleSeoChange(selectedSeoPage, 'description', e.target.value)} /></div>
-                            <div><label className="block text-sm font-bold text-slate-700 mb-1">Keywords</label><input className="w-full p-2 border rounded" value={settings.seo[selectedSeoPage]?.keywords || ''} onChange={e => handleSeoChange(selectedSeoPage, 'keywords', e.target.value)} /></div>
-                            <ImagePicker label="OG Image" value={settings.seo[selectedSeoPage]?.ogImage || ''} onChange={url => handleSeoChange(selectedSeoPage, 'ogImage', url)} />
-                            <div className="pt-4 flex justify-end"><button type="submit" className="bg-green-600 text-white px-6 py-2 rounded font-bold flex items-center gap-2"><Save size={18}/> Сохранить мета-теги</button></div>
+                    ) : (
+                        <form onSubmit={handleSavePopup} className="space-y-6">
+                            <h3 className="text-xl font-bold">Настройка всплывающего окна</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div><label className="block text-sm font-bold mb-1">Заголовок</label><input className="w-full p-2 border rounded" value={editingPopup.title} onChange={e => setEditingPopup({...editingPopup, title: e.target.value})} /></div>
+                                <div><label className="block text-sm font-bold mb-1">Задержка (сек)</label><input type="number" className="w-full p-2 border rounded" value={editingPopup.delaySeconds} onChange={e => setEditingPopup({...editingPopup, delaySeconds: parseInt(e.target.value)})} /></div>
+                            </div>
+                            <ImagePicker label="Изображение в попапе" value={editingPopup.imageUrl || ''} onChange={url => setEditingPopup({...editingPopup, imageUrl: url})} />
+                            <div><label className="block text-sm font-bold mb-1">Текст сообщения</label><textarea className="w-full p-2 border rounded h-24" value={editingPopup.text} onChange={e => setEditingPopup({...editingPopup, text: e.target.value})} /></div>
+                            <div className="flex gap-6">
+                                <label className="flex items-center gap-2"><input type="checkbox" checked={editingPopup.isActive} onChange={e => setEditingPopup({...editingPopup, isActive: e.target.checked})} /> <span className="text-sm font-bold">Активен</span></label>
+                                <label className="flex items-center gap-2"><input type="checkbox" checked={editingPopup.hasForm} onChange={e => setEditingPopup({...editingPopup, hasForm: e.target.checked})} /> <span className="text-sm font-bold">Показывать форму заявки</span></label>
+                            </div>
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingPopup(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
                         </form>
-                    </div>
+                    )}
                 </div>
-            )}
-
-            {/* MEDIA */}
-            {activeTab === 'media' && <div className="h-[700px]"><MediaLibrary /></div>}
-
-            {/* SETTINGS */}
-            {activeTab === 'settings' && (
-                <form onSubmit={handleSaveSettings} className="space-y-8">
-                    <div className="grid md:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                            <h3 className="font-bold text-lg border-b pb-2">Общие настройки</h3>
-                            <ImagePicker label="Логотип сайта" value={settings.logo || ''} onChange={url => setSettings({...settings, logo: url})} />
-                            <ImagePicker label="Favicon" value={settings.favicon || ''} onChange={url => setSettings({...settings, favicon: url})} />
-                        </div>
-                        <div className="space-y-4">
-                            <h3 className="font-bold text-lg border-b pb-2">Соцсети (ссылки)</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="text-xs text-slate-500">Telegram</label><input className="w-full p-2 border rounded text-sm" value={settings.socials?.telegram || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, telegram: e.target.value}})} /></div>
-                                <div><label className="text-xs text-slate-500">VK</label><input className="w-full p-2 border rounded text-sm" value={settings.socials?.vk || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vk: e.target.value}})} /></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <h3 className="font-bold text-lg border-b pb-2 flex items-center gap-2"><FileCode className="text-slate-400" size={20}/> Вставка кода (Метрика, Пиксели)</h3>
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div><label className="block text-sm font-medium mb-1">Header (перед &lt;/head&gt;)</label><textarea className="w-full p-3 font-mono text-xs border rounded bg-slate-900 text-green-400 h-40" value={settings.headerCode} onChange={e => setSettings({...settings, headerCode: e.target.value})} placeholder="<script>...</script>" /></div>
-                            <div><label className="block text-sm font-medium mb-1">Footer (перед &lt;/body&gt;)</label><textarea className="w-full p-3 font-mono text-xs border rounded bg-slate-900 text-green-400 h-40" value={settings.footerCode} onChange={e => setSettings({...settings, footerCode: e.target.value})} placeholder="<script>...</script>" /></div>
-                        </div>
-                    </div>
-                    <div className="pt-6 border-t flex justify-end"><button type="submit" className="bg-slate-900 text-white px-10 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors"><Save size={20}/> Сохранить всё</button></div>
-                </form>
             )}
 
             </div>
