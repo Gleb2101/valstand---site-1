@@ -157,7 +157,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
 
     [newServices[index], newServices[targetIndex]] = [newServices[targetIndex], newServices[index]];
     
-    // Update orderIndex
     const updated = newServices.map((s, idx) => ({ ...s, orderIndex: idx }));
     setServicesData(updated);
     
@@ -221,7 +220,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if(e) e.preventDefault();
     try {
       await dataManager.saveSettings(settings);
       alert('Настройки успешно сохранены!');
@@ -274,25 +273,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
     p.key.toLowerCase().includes(seoSearch.toLowerCase())
   );
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl w-full max-w-md border border-slate-200 shadow-xl">
-          <div className="text-center mb-6">
-            <Lock className="w-12 h-12 text-brand-orange mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-slate-900">Valstand CMS</h2>
-          </div>
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input type="password" placeholder="Пароль администратора" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-900 focus:border-brand-orange outline-none" />
-            <button type="submit" className="w-full py-3 bg-brand-yellow text-brand-dark font-bold rounded-lg hover:bg-brand-orange transition-colors">Войти</button>
-            <button type="button" onClick={onBack} className="w-full py-3 text-slate-400 hover:text-slate-600">Назад на сайт</button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
-  const TabButton = ({ id, label, icon: Icon }: any) => (
+  const TabButton = ({ id, label, icon: Icon }: { id: Tab, label: string, icon: any }) => (
     <button type="button" onClick={() => setActiveTab(id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors whitespace-nowrap ${activeTab === id ? 'bg-brand-yellow text-brand-dark font-bold shadow-sm' : 'text-slate-500 hover:text-slate-900 hover:bg-white'}`}>
       <Icon size={18} /> {label}
     </button>
@@ -323,7 +304,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
         </div>
 
         {loading ? <div className="flex justify-center py-20 animate-spin w-10 h-10 border-4 border-brand-orange border-t-transparent rounded-full" /> : (
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm min-h-[600px]">
             
             {/* DASHBOARD */}
             {activeTab === 'dashboard' && (
@@ -401,57 +382,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                         <h3 className="text-xl font-bold">Контент главной страницы</h3>
                         <button onClick={handleSaveSettings} className="bg-brand-orange text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2"><Save size={18}/> Сохранить всё</button>
                     </div>
-
                     <div className="grid md:grid-cols-2 gap-8">
-                        {/* Hero Block */}
                         <div className="space-y-4 p-6 bg-slate-50 rounded-xl border">
                             <h4 className="font-bold flex items-center gap-2 text-slate-700"><Layers size={18}/> Первый экран (Hero)</h4>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Заголовок (HTML)</label>
-                                <textarea 
-                                    className="w-full p-2 border rounded font-mono text-sm h-32" 
-                                    value={settings.homeContent?.heroTitle || ''} 
-                                    onChange={e => handleHomeContentChange('heroTitle', e.target.value)}
-                                    placeholder="Масштабируем <br /> Ваш Бизнес через <br /> <span class='text-gradient'>Цифровые Каналы</span>"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Описание</label>
-                                <textarea 
-                                    className="w-full p-2 border rounded text-sm h-24" 
-                                    value={settings.homeContent?.heroDescription || ''} 
-                                    onChange={e => handleHomeContentChange('heroDescription', e.target.value)}
-                                />
-                            </div>
+                            <div><label className="block text-xs font-bold text-slate-500 mb-1">Заголовок (HTML)</label><textarea className="w-full p-2 border rounded font-mono text-sm h-32" value={settings.homeContent?.heroTitle || ''} onChange={e => handleHomeContentChange('heroTitle', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 mb-1">Описание</label><textarea className="w-full p-2 border rounded text-sm h-24" value={settings.homeContent?.heroDescription || ''} onChange={e => handleHomeContentChange('heroDescription', e.target.value)} /></div>
                         </div>
-
-                        {/* About Preview Block */}
                         <div className="space-y-4 p-6 bg-slate-50 rounded-xl border">
                             <h4 className="font-bold flex items-center gap-2 text-slate-700"><Users size={18}/> Блок "О нас" (превью)</h4>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Заголовок</label>
-                                <input 
-                                    className="w-full p-2 border rounded text-sm" 
-                                    value={settings.homeContent?.aboutPreviewTitle || ''} 
-                                    onChange={e => handleHomeContentChange('aboutPreviewTitle', e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Абзац 1</label>
-                                <textarea 
-                                    className="w-full p-2 border rounded text-sm h-20" 
-                                    value={settings.homeContent?.aboutPreviewText1 || ''} 
-                                    onChange={e => handleHomeContentChange('aboutPreviewText1', e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-500 mb-1">Абзац 2</label>
-                                <textarea 
-                                    className="w-full p-2 border rounded text-sm h-20" 
-                                    value={settings.homeContent?.aboutPreviewText2 || ''} 
-                                    onChange={e => handleHomeContentChange('aboutPreviewText2', e.target.value)}
-                                />
-                            </div>
+                            <div><label className="block text-xs font-bold text-slate-500 mb-1">Заголовок</label><input className="w-full p-2 border rounded text-sm" value={settings.homeContent?.aboutPreviewTitle || ''} onChange={e => handleHomeContentChange('aboutPreviewTitle', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 mb-1">Абзац 1</label><textarea className="w-full p-2 border rounded text-sm h-20" value={settings.homeContent?.aboutPreviewText1 || ''} onChange={e => handleHomeContentChange('aboutPreviewText1', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-slate-500 mb-1">Абзац 2</label><textarea className="w-full p-2 border rounded text-sm h-20" value={settings.homeContent?.aboutPreviewText2 || ''} onChange={e => handleHomeContentChange('aboutPreviewText2', e.target.value)} /></div>
                         </div>
                     </div>
                 </div>
@@ -472,11 +413,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                                 <button onClick={() => handleMoveService(index, 'down')} disabled={index === servicesData.length - 1} className="p-1 hover:bg-slate-100 rounded disabled:opacity-30"><ArrowDown size={14}/></button>
                                             </div>
                                             <div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-brand-orange">
-                                                {s.icon && (s.icon.startsWith('http') || s.icon.startsWith('data:')) ? (
-                                                    <img src={s.icon} className="w-6 h-6 object-contain" alt="" />
-                                                ) : (
-                                                    <Target size={20}/>
-                                                )}
+                                                {s.icon && (s.icon.startsWith('http') || s.icon.startsWith('data:')) ? <img src={s.icon} className="w-6 h-6 object-contain" /> : <Target size={20}/>}
                                             </div>
                                             <div><h4 className="font-bold">{s.title}</h4><p className="text-xs text-slate-500 truncate max-w-md">{s.description}</p></div>
                                         </div>
@@ -491,127 +428,279 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                     ) : (
                         <form onSubmit={handleSaveService} className="space-y-6 max-w-5xl">
                             <div className="flex justify-between items-center border-b pb-4">
-                                <h3 className="text-xl font-bold">Редактирование: {editingService.title || 'Новая услуга'}</h3>
+                                <h3 className="text-xl font-bold">Услуга: {editingService.title || 'Новая'}</h3>
                                 <button type="button" onClick={() => setEditingService(null)} className="text-slate-400 hover:text-slate-600"><X/></button>
                             </div>
-                            
                             <div className="grid md:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-bold mb-1">ID (URL-slug)</label><input className="w-full p-2 border rounded" value={editingService.id} onChange={e => setEditingService({...editingService, id: e.target.value})} required /></div>
+                                <div><label className="block text-sm font-bold mb-1">ID (URL)</label><input className="w-full p-2 border rounded" value={editingService.id} onChange={e => setEditingService({...editingService, id: e.target.value})} required /></div>
                                 <div><label className="block text-sm font-bold mb-1">Название</label><input className="w-full p-2 border rounded" value={editingService.title} onChange={e => setEditingService({...editingService, title: e.target.value})} required /></div>
                             </div>
-
-                            <div className="bg-slate-50 p-4 rounded-xl border border-dashed border-slate-300">
-                                <h4 className="font-bold text-sm mb-3">Иконка услуги</h4>
-                                <div className="flex gap-4">
-                                    <div className="w-20 h-20 bg-white border rounded-lg flex items-center justify-center overflow-hidden">
-                                        {editingService.icon && (editingService.icon.startsWith('http') || editingService.icon.startsWith('data:')) ? (
-                                            <img src={editingService.icon} className="w-full h-full object-contain" />
-                                        ) : (
-                                            <div className="text-slate-300 flex flex-col items-center">
-                                                <Target size={32} />
-                                                <span className="text-[10px] mt-1 uppercase">{editingService.icon || 'default'}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-grow space-y-2">
-                                        <ImagePicker 
-                                            label="Выберите загруженную иконку или введите ID Lucide" 
-                                            value={editingService.icon} 
-                                            onChange={val => setEditingService({...editingService, icon: val})} 
-                                        />
-                                        <p className="text-[10px] text-slate-400 italic">ID для стандартных: target, search, share, code, palette, chart</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div><label className="block text-sm font-bold mb-1">Короткий анонс</label><textarea className="w-full p-2 border rounded h-20" value={editingService.description} onChange={e => setEditingService({...editingService, description: e.target.value})} /></div>
-                            
-                            <div className="bg-slate-50 p-4 rounded-xl border">
-                                <h4 className="font-bold mb-4 flex items-center gap-2 text-slate-700"><List size={18}/> Что входит в услугу</h4>
-                                <div className="space-y-2">
-                                    {(editingService.features || []).map((f, idx) => (
-                                        <div key={idx} className="flex gap-2">
-                                            <input className="flex-grow p-2 border rounded text-sm" value={f} onChange={e => {
-                                                const newFeatures = [...editingService.features];
-                                                newFeatures[idx] = e.target.value;
-                                                setEditingService({...editingService, features: newFeatures});
-                                            }} />
-                                            <button type="button" onClick={() => setEditingService({...editingService, features: editingService.features.filter((_, i) => i !== idx)})} className="text-red-500 p-2 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
-                                        </div>
-                                    ))}
-                                    <button type="button" onClick={() => setEditingService({...editingService, features: [...(editingService.features || []), '']})} className="text-sm font-bold text-brand-orange flex items-center gap-1 hover:underline"><Plus size={16}/> Добавить пункт</button>
-                                </div>
-                            </div>
-
-                            <div className="bg-slate-50 p-4 rounded-xl border">
-                                <h4 className="font-bold mb-4 flex items-center gap-2 text-slate-700"><Star size={18}/> Преимущества (Benefits)</h4>
-                                <div className="grid gap-4">
-                                    {(editingService.benefits || []).map((b, idx) => (
-                                        <div key={idx} className="p-4 bg-white border rounded-lg relative">
-                                            <button type="button" onClick={() => setEditingService({...editingService, benefits: editingService.benefits.filter((_, i) => i !== idx)})} className="absolute top-2 right-2 text-red-500 p-1 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
-                                            <div className="space-y-2">
-                                                <input placeholder="Заголовок преимущества" className="w-full p-2 border rounded text-sm font-bold" value={b.title} onChange={e => {
-                                                    const newBenefits = [...editingService.benefits];
-                                                    newBenefits[idx] = { ...newBenefits[idx], title: e.target.value };
-                                                    setEditingService({...editingService, benefits: newBenefits});
-                                                }} />
-                                                <textarea placeholder="Описание" className="w-full p-2 border rounded text-sm h-16" value={b.desc} onChange={e => {
-                                                    const newBenefits = [...editingService.benefits];
-                                                    newBenefits[idx] = { ...newBenefits[idx], desc: e.target.value };
-                                                    setEditingService({...editingService, benefits: newBenefits});
-                                                }} />
-                                            </div>
-                                        </div>
-                                    ))}
-                                    <button type="button" onClick={() => setEditingService({...editingService, benefits: [...(editingService.benefits || []), {title: '', desc: ''}]})} className="text-sm font-bold text-brand-orange flex items-center gap-1 hover:underline"><Plus size={16}/> Добавить преимущество</button>
-                                </div>
-                            </div>
-
-                            <div className="bg-slate-50 p-4 rounded-xl border">
-                                <h4 className="font-bold mb-4 flex items-center gap-2 text-slate-700"><Clock size={18}/> Этапы работы (Process)</h4>
-                                <div className="space-y-4">
-                                    {(editingService.process || []).map((p, idx) => (
-                                        <div key={idx} className="p-4 bg-white border rounded-lg space-y-3">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-xs font-bold text-slate-400">ШАГ {idx + 1}</span>
-                                                <button type="button" onClick={() => setEditingService({...editingService, process: editingService.process.filter((_, i) => i !== idx)})} className="text-red-500 p-1 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
-                                            </div>
-                                            <div className="grid md:grid-cols-2 gap-3">
-                                                <input placeholder="Название этапа" className="w-full p-2 border rounded text-sm font-bold" value={p.step} onChange={e => {
-                                                    const newProc = [...editingService.process];
-                                                    newProc[idx] = { ...newProc[idx], step: e.target.value };
-                                                    setEditingService({...editingService, process: newProc});
-                                                }} />
-                                                <input placeholder="Краткая подпись" className="w-full p-2 border rounded text-sm" value={p.desc} onChange={e => {
-                                                    const newProc = [...editingService.process];
-                                                    newProc[idx] = { ...newProc[idx], desc: e.target.value };
-                                                    setEditingService({...editingService, process: newProc});
-                                                }} />
-                                            </div>
-                                            <textarea placeholder="Детальное описание этапа" className="w-full p-2 border rounded text-sm h-24" value={p.details || ''} onChange={e => {
-                                                const newProc = [...editingService.process];
-                                                newProc[idx] = { ...newProc[idx], details: e.target.value };
-                                                setEditingService({...editingService, process: newProc});
-                                            }} />
-                                            <ImagePicker label="Изображение примера" value={p.exampleImage || ''} onChange={url => {
-                                                const newProc = [...editingService.process];
-                                                newProc[idx] = { ...newProc[idx], exampleImage: url };
-                                                setEditingService({...editingService, process: newProc});
-                                            }} />
-                                        </div>
-                                    ))}
-                                    <button type="button" onClick={() => setEditingService({...editingService, process: [...(editingService.process || []), {step: '', desc: '', details: '', exampleImage: ''}]})} className="text-sm font-bold text-brand-orange flex items-center gap-1 hover:underline"><Plus size={16}/> Добавить шаг процесса</button>
-                                </div>
-                            </div>
-
-                            <div><label className="block text-sm font-bold mb-1">Полный текст (Rich Text)</label><RichTextEditor content={editingService.fullDescription} onChange={html => setEditingService({...editingService, fullDescription: html})} /></div>
-                            
-                            <div className="flex justify-end gap-3 pt-6 border-t"><button type="button" onClick={() => setEditingService(null)} className="px-6 py-2 border rounded font-bold">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded font-bold">Сохранить</button></div>
+                            <ImagePicker label="Иконка (Изображение или ID Lucide)" value={editingService.icon} onChange={url => setEditingService({...editingService, icon: url})} />
+                            <div><label className="block text-sm font-bold mb-1">Описание</label><RichTextEditor content={editingService.fullDescription} onChange={html => setEditingService({...editingService, fullDescription: html})} /></div>
+                            <div className="flex justify-end gap-3 pt-6 border-t"><button type="button" onClick={() => setEditingService(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
                         </form>
                     )}
                 </div>
             )}
-            {/* ... rest of the tabs ... */}
+
+            {/* PACKAGES */}
+            {activeTab === 'packages' && (
+                <div>
+                    {!editingPackage ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingPackage({ id: Date.now().toString(), title: '', subtitle: '', price: '', description: '', features: [], fullDescription: '', timeline: '', benefits: [], detailedFeatures: [] })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Создать пакет</button>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {packagesData.map(p => (
+                                    <div key={p.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange transition-colors">
+                                        <div className="flex items-center gap-4"><div className="w-10 h-10 bg-slate-100 rounded flex items-center justify-center text-brand-orange"><Package size={20}/></div><div><h4 className="font-bold">{p.title}</h4><p className="text-xs text-brand-orange font-bold">{p.price}</p></div></div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingPackage(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deletePackage(p.id); setPackagesData(await dataManager.getPackages()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSavePackage} className="space-y-6">
+                            <h3 className="text-xl font-bold border-b pb-2">Пакет: {editingPackage.title}</h3>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <input placeholder="Название" className="p-2 border rounded" value={editingPackage.title} onChange={e => setEditingPackage({...editingPackage, title: e.target.value})} />
+                                <input placeholder="Цена" className="p-2 border rounded" value={editingPackage.price} onChange={e => setEditingPackage({...editingPackage, price: e.target.value})} />
+                                <input placeholder="Срок" className="p-2 border rounded" value={editingPackage.timeline} onChange={e => setEditingPackage({...editingPackage, timeline: e.target.value})} />
+                            </div>
+                            <RichTextEditor content={editingPackage.fullDescription} onChange={html => setEditingPackage({...editingPackage, fullDescription: html})} />
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingPackage(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* CASES */}
+            {activeTab === 'cases' && (
+                <div>
+                    {!editingCase ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingCase({ id: Date.now().toString(), title: '', category: 'Маркетинг', image: '', description: '', results: [], tags: [] })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Добавить кейс</button>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {cases.map(c => (
+                                    <div key={c.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange">
+                                        <div className="flex items-center gap-4"><img src={c.image} className="w-16 h-12 object-cover rounded" /><div><h4 className="font-bold text-sm">{c.title}</h4><span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded">{c.category}</span></div></div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingCase(c)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deleteCase(c.id); setCases(await dataManager.getCases()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSaveCase} className="space-y-6">
+                            <h3 className="text-xl font-bold">Кейс: {editingCase.title}</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <input placeholder="Заголовок" className="p-2 border rounded" value={editingCase.title} onChange={e => setEditingCase({...editingCase, title: e.target.value})} />
+                                <input placeholder="Категория" className="p-2 border rounded" value={editingCase.category} onChange={e => setEditingCase({...editingCase, category: e.target.value})} />
+                            </div>
+                            <ImagePicker label="Обложка" value={editingCase.image} onChange={url => setEditingCase({...editingCase, image: url})} />
+                            <RichTextEditor content={editingCase.fullDescription || ''} onChange={html => setEditingCase({...editingCase, fullDescription: html})} />
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingCase(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* REVIEWS */}
+            {activeTab === 'reviews' && (
+                <div>
+                    {!editingReview ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingReview({ id: Date.now(), name: '', role: '', company: '', text: '', avatar: '' })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Добавить отзыв</button>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {reviews.map(r => (
+                                    <div key={r.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange">
+                                        <div className="flex items-center gap-4"><img src={r.avatar} className="w-12 h-12 rounded-full object-cover" /><div><h4 className="font-bold">{r.name}</h4><p className="text-xs text-slate-500">{r.company}</p></div></div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingReview(r)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deleteTestimonial(r.id); setReviews(await dataManager.getTestimonials()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSaveReview} className="space-y-6">
+                            <h3 className="text-xl font-bold">Отзыв</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <input placeholder="Имя" className="p-2 border rounded" value={editingReview.name} onChange={e => setEditingReview({...editingReview, name: e.target.value})} />
+                                <input placeholder="Компания" className="p-2 border rounded" value={editingReview.company} onChange={e => setEditingReview({...editingReview, company: e.target.value})} />
+                            </div>
+                            <ImagePicker label="Аватар" value={editingReview.avatar} onChange={url => setEditingReview({...editingReview, avatar: url})} />
+                            <textarea placeholder="Текст" className="w-full p-2 border rounded h-32" value={editingReview.text} onChange={e => setEditingReview({...editingReview, text: e.target.value})} />
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingReview(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* BLOG */}
+            {activeTab === 'blog' && (
+                <div>
+                    {!editingPost ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingPost({ id: Date.now().toString(), title: '', excerpt: '', content: '', image: '', category: 'Маркетинг', date: new Date().toISOString().split('T')[0], author: 'Valstand' })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Написать статью</button>
+                            <div className="grid gap-4">
+                                {blogPosts.map(p => (
+                                    <div key={p.id} className="p-4 border rounded-xl flex items-center justify-between hover:border-brand-orange">
+                                        <div className="flex items-center gap-4"><img src={p.image} className="w-12 h-12 object-cover rounded" /><div><h4 className="font-bold">{p.title}</h4><div className="flex gap-2 items-center text-[10px] text-slate-500"><Calendar size={10}/> {p.date}</div></div></div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingPost(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deleteBlogPost(p.id); setBlogPosts(await dataManager.getBlogPosts()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSavePost} className="space-y-6">
+                            <h3 className="text-xl font-bold">Статья: {editingPost.title}</h3>
+                            <input placeholder="Заголовок" className="w-full p-2 border rounded font-bold" value={editingPost.title} onChange={e => setEditingPost({...editingPost, title: e.target.value})} />
+                            <ImagePicker label="Главное фото" value={editingPost.image} onChange={url => setEditingPost({...editingPost, image: url})} />
+                            <RichTextEditor content={editingPost.content} onChange={html => setEditingPost({...editingPost, content: html})} />
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingPost(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Опубликовать</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* TEAM */}
+            {activeTab === 'team' && (
+                <div>
+                    {!editingMember ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingMember({ id: Date.now().toString(), name: '', role: '', description: '', image: '' })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Добавить в команду</button>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                {team.map(m => (
+                                    <div key={m.id} className="p-4 border rounded-xl flex flex-col items-center text-center">
+                                        <img src={m.image} className="w-24 h-24 rounded-full object-cover mb-4" />
+                                        <h4 className="font-bold">{m.name}</h4><p className="text-xs text-brand-orange uppercase mb-4">{m.role}</p>
+                                        <div className="flex gap-2 w-full justify-center pt-4 border-t">
+                                            <button onClick={() => setEditingMember(m)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deleteTeamMember(m.id); setTeam(await dataManager.getTeam()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSaveTeam} className="space-y-6">
+                            <h3 className="text-xl font-bold">Команда</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <input placeholder="Имя" className="p-2 border rounded" value={editingMember.name} onChange={e => setEditingMember({...editingMember, name: e.target.value})} />
+                                <input placeholder="Должность" className="p-2 border rounded" value={editingMember.role} onChange={e => setEditingMember({...editingMember, role: e.target.value})} />
+                            </div>
+                            <ImagePicker label="Фото" value={editingMember.image} onChange={url => setEditingMember({...editingMember, image: url})} />
+                            <textarea placeholder="О себе" className="w-full p-2 border rounded h-24" value={editingMember.description} onChange={e => setEditingMember({...editingMember, description: e.target.value})} />
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingMember(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* POPUPS */}
+            {activeTab === 'popups' && (
+                <div>
+                    {!editingPopup ? (
+                        <div className="space-y-4">
+                            <button onClick={() => setEditingPopup({ id: Date.now().toString(), title: '', text: '', hasForm: true, isActive: true, delaySeconds: 5 })} className="flex items-center gap-2 bg-brand-orange text-white px-4 py-2 rounded-lg font-bold"><Plus size={20}/> Создать попап</button>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                {popups.map(p => (
+                                    <div key={p.id} className={`p-4 border rounded-xl flex items-center justify-between ${p.isActive ? 'border-brand-orange' : 'opacity-50'}`}>
+                                        <div><h4 className="font-bold">{p.title}</h4><p className="text-xs text-slate-500">Задержка: {p.delaySeconds} сек</p></div>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingPopup(p)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><FileText size={18}/></button>
+                                            <button onClick={async () => { if(confirm('Удалить?')) { await dataManager.deletePopup(p.id); setPopups(await dataManager.getPopups()); } }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={18}/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSavePopup} className="space-y-6">
+                            <h3 className="text-xl font-bold">Попап</h3>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <input placeholder="Заголовок" className="p-2 border rounded" value={editingPopup.title} onChange={e => setEditingPopup({...editingPopup, title: e.target.value})} />
+                                <input type="number" placeholder="Задержка (сек)" className="p-2 border rounded" value={editingPopup.delaySeconds} onChange={e => setEditingPopup({...editingPopup, delaySeconds: parseInt(e.target.value)})} />
+                            </div>
+                            <ImagePicker label="Картинка" value={editingPopup.imageUrl || ''} onChange={url => setEditingPopup({...editingPopup, imageUrl: url})} />
+                            <textarea placeholder="Текст" className="w-full p-2 border rounded h-24" value={editingPopup.text} onChange={e => setEditingPopup({...editingPopup, text: e.target.value})} />
+                            <div className="flex gap-6">
+                                <label className="flex items-center gap-2"><input type="checkbox" checked={editingPopup.isActive} onChange={e => setEditingPopup({...editingPopup, isActive: e.target.checked})} /> Активен</label>
+                                <label className="flex items-center gap-2"><input type="checkbox" checked={editingPopup.hasForm} onChange={e => setEditingPopup({...editingPopup, hasForm: e.target.checked})} /> С формой</label>
+                            </div>
+                            <div className="flex justify-end gap-3"><button type="button" onClick={() => setEditingPopup(null)} className="px-6 py-2 border rounded">Отмена</button><button type="submit" className="px-6 py-2 bg-brand-orange text-white rounded">Сохранить</button></div>
+                        </form>
+                    )}
+                </div>
+            )}
+
+            {/* SEO */}
+            {activeTab === 'seo' && (
+                <div className="grid md:grid-cols-4 gap-6">
+                    <div className="md:col-span-1 bg-slate-50 p-4 rounded-xl border h-fit">
+                        <h3 className="font-bold mb-4">Страницы</h3>
+                        <input placeholder="Поиск..." className="w-full p-2 mb-4 border rounded text-sm" value={seoSearch} onChange={e => setSeoSearch(e.target.value)} />
+                        <div className="space-y-1 max-h-[500px] overflow-y-auto">
+                            {filteredSeoPages.map(p => (
+                                <button key={p.key} onClick={() => setSelectedSeoPage(p.key)} className={`w-full text-left px-3 py-2 rounded text-sm truncate ${selectedSeoPage === p.key ? 'bg-brand-orange text-white' : 'hover:bg-slate-200'}`}>{p.label}</button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="md:col-span-3">
+                        <div className="p-6 bg-white rounded-xl border shadow-sm space-y-4">
+                            <h3 className="font-bold text-xl mb-4">SEO: {filteredSeoPages.find(p => p.key === selectedSeoPage)?.label}</h3>
+                            <div><label className="block text-sm font-bold mb-1">Meta Title</label><input className="w-full p-2 border rounded" value={settings.seo[selectedSeoPage]?.title || ''} onChange={e => handleSeoChange(selectedSeoPage, 'title', e.target.value)} /></div>
+                            <div><label className="block text-sm font-bold mb-1">Meta Description</label><textarea className="w-full p-2 border rounded h-24" value={settings.seo[selectedSeoPage]?.description || ''} onChange={e => handleSeoChange(selectedSeoPage, 'description', e.target.value)} /></div>
+                            <div><label className="block text-sm font-bold mb-1">Keywords</label><input className="w-full p-2 border rounded" value={settings.seo[selectedSeoPage]?.keywords || ''} onChange={e => handleSeoChange(selectedSeoPage, 'keywords', e.target.value)} /></div>
+                            <ImagePicker label="OG Image" value={settings.seo[selectedSeoPage]?.ogImage || ''} onChange={url => handleSeoChange(selectedSeoPage, 'ogImage', url)} />
+                            <div className="pt-4 flex justify-end"><button onClick={handleSaveSettings} className="bg-green-600 text-white px-6 py-2 rounded font-bold flex items-center gap-2"><Save size={18}/> Сохранить мета-теги</button></div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MEDIA */}
+            {activeTab === 'media' && <div className="h-[700px]"><MediaLibrary /></div>}
+
+            {/* SETTINGS */}
+            {activeTab === 'settings' && (
+                <form onSubmit={handleSaveSettings} className="space-y-8">
+                    <div className="grid md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <h3 className="font-bold text-lg border-b pb-2">Общие</h3>
+                            <ImagePicker label="Логотип" value={settings.logo || ''} onChange={url => setSettings({...settings, logo: url})} />
+                            <ImagePicker label="Favicon" value={settings.favicon || ''} onChange={url => setSettings({...settings, favicon: url})} />
+                        </div>
+                        <div className="space-y-4">
+                            <h3 className="font-bold text-lg border-b pb-2">Соцсети</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <input placeholder="Telegram" className="p-2 border rounded text-sm" value={settings.socials?.telegram || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, telegram: e.target.value}})} />
+                                <input placeholder="VK" className="p-2 border rounded text-sm" value={settings.socials?.vk || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vk: e.target.value}})} />
+                                <input placeholder="VC.ru" className="p-2 border rounded text-sm" value={settings.socials?.vc || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, vc: e.target.value}})} />
+                                <input placeholder="TJ" className="p-2 border rounded text-sm" value={settings.socials?.tj || ''} onChange={e => setSettings({...settings, socials: {...settings.socials, tj: e.target.value}})} />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        <h3 className="font-bold text-lg border-b pb-2 flex items-center gap-2"><FileCode size={20}/> Код (Метрика и т.д.)</h3>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <textarea placeholder="Header Code" className="w-full p-3 font-mono text-xs border rounded bg-slate-900 text-green-400 h-40" value={settings.headerCode} onChange={e => setSettings({...settings, headerCode: e.target.value})} />
+                            <textarea placeholder="Footer Code" className="w-full p-3 font-mono text-xs border rounded bg-slate-900 text-green-400 h-40" value={settings.footerCode} onChange={e => setSettings({...settings, footerCode: e.target.value})} />
+                        </div>
+                    </div>
+                    <div className="pt-6 border-t flex justify-end"><button type="submit" className="bg-slate-900 text-white px-10 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors"><Save size={20}/> Сохранить настройки</button></div>
+                </form>
+            )}
+
             </div>
         )}
       </div>
