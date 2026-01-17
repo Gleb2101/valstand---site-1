@@ -1,13 +1,21 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, ShieldCheck, Rocket, ArrowRight } from 'lucide-react';
 import ScrollReveal from './ScrollReveal';
+import { dataManager } from '../services/dataManager';
+import { HomeContent } from '../types';
 
 interface AboutPreviewProps {
   onNavigate: () => void;
 }
 
 const AboutPreview: React.FC<AboutPreviewProps> = ({ onNavigate }) => {
+  const [content, setContent] = useState<HomeContent | null>(null);
+
+  useEffect(() => {
+    dataManager.getSettings().then(s => setContent(s.homeContent || null));
+  }, []);
+
   return (
     <section className="py-24 bg-gradient-to-b from-white to-slate-50 border-t border-slate-100 relative overflow-hidden">
       {/* Background Decor */}
@@ -19,16 +27,13 @@ const AboutPreview: React.FC<AboutPreviewProps> = ({ onNavigate }) => {
           <ScrollReveal>
             <div className="space-y-8">
               <h2 className="text-3xl md:text-5xl font-bold text-slate-900">
-                Кто мы такие: <br />
-                <span className="text-gradient">Агентство Valstand</span>
+                {content?.aboutPreviewTitle || <>Кто мы такие: <br /><span className="text-gradient">Агентство Valstand</span></>}
               </h2>
               <p className="text-slate-600 text-lg leading-relaxed">
-                Мы — команда практиков, объединившая опыт в маркетинге, дизайне и разработке. 
-                Мы не верим в "волшебные таблетки", но верим в цифры, тесты и системный подход.
+                {content?.aboutPreviewText1 || 'Мы — команда практиков, объединившая опыт в маркетинге, дизайне и разработке. Мы не верим в "волшебные таблетки", но верим в цифры, тесты и системный подход.'}
               </p>
               <p className="text-slate-600 text-lg leading-relaxed">
-                Наше название <b>Valstand</b> происходит от сложения ценности (Value) и стандарта (Standard). 
-                Мы создаем новый стандарт качества на рынке digital-услуг.
+                {content?.aboutPreviewText2 || <>Наше название <b>Valstand</b> происходит от сложения ценности (Value) и стандарта (Standard). Мы создаем новый стандарт качества на рынке digital-услуг.</>}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">

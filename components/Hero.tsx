@@ -1,13 +1,21 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, Briefcase } from 'lucide-react';
 import ScrollReveal from './ScrollReveal';
+import { dataManager } from '../services/dataManager';
+import { HomeContent } from '../types';
 
 interface HeroProps {
   onNavigate: (page: string) => void;
 }
 
 const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
+  const [content, setContent] = useState<HomeContent | null>(null);
+
+  useEffect(() => {
+    dataManager.getSettings().then(s => setContent(s.homeContent || null));
+  }, []);
+
   return (
     <section className="relative min-h-screen flex items-center pt-20 overflow-hidden bg-slate-50">
       {/* Background Elements */}
@@ -24,14 +32,13 @@ const Hero: React.FC<HeroProps> = ({ onNavigate }) => {
               Комплексный маркетинг 360°
             </div>
             
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-slate-900">
-              Масштабируем <br />
-              Ваш Бизнес через <br />
-              <span className="text-gradient">Цифровые Каналы</span>
-            </h1>
+            <h1 
+              className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-slate-900"
+              dangerouslySetInnerHTML={{ __html: content?.heroTitle || 'Масштабируем <br /> Ваш Бизнес через <br /> <span class="text-gradient">Цифровые Каналы</span>' }}
+            />
             
             <p className="text-lg text-slate-600 max-w-lg leading-relaxed">
-              Агентство <b>Valstand</b> сочетает креативный подход и точную аналитику данных. Настраиваем рекламу, которая окупается, и создаем бренды, которые любят.
+              {content?.heroDescription || 'Агентство Valstand сочетает креативный подход и точную аналитику данных. Настраиваем рекламу, которая окупается, и создаем бренды, которые любят.'}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 pt-4">

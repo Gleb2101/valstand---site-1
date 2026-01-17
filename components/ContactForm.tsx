@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Phone, MapPin, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, CheckCircle, Loader2, AlertCircle, AtSign } from 'lucide-react';
 import { PACKAGES } from '../constants';
 import { dataManager } from '../services/dataManager';
 import { ServiceItem } from '../types';
@@ -17,7 +17,8 @@ const ContactForm: React.FC<ContactFormProps> = ({ services = [], selectedServic
   const [interest, setInterest] = useState(selectedService);
   const [formData, setFormData] = useState({
     name: '',
-    phone: ''
+    phone: '',
+    email: ''
   });
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,15 +37,15 @@ const ContactForm: React.FC<ContactFormProps> = ({ services = [], selectedServic
     setErrorMessage('');
 
     try {
-      // Save to CMS Manager
       await dataManager.addLead({
         name: formData.name,
         phone: formData.phone,
+        email: formData.email,
         service: interest
       });
 
       setSubmitted(true);
-      setFormData({ name: '', phone: '' });
+      setFormData({ name: '', phone: '', email: '' });
       setPrivacyAccepted(false);
     } catch (error) {
       console.error(error);
@@ -119,39 +120,53 @@ const ContactForm: React.FC<ContactFormProps> = ({ services = [], selectedServic
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-2">Имя</label>
+                  <label className="block text-slate-700 font-semibold mb-1 text-sm">Имя</label>
                   <input 
                     type="text" 
                     required 
                     value={formData.name}
                     onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
+                    className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
                     placeholder="Иван Иванов"
                     disabled={isSubmitting}
                   />
                 </div>
                 
-                <div>
-                  <label className="block text-slate-700 font-semibold mb-2">Телефон</label>
-                  <input 
-                    type="tel" 
-                    required 
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
-                    placeholder="+7 (---) --- -- --"
-                    disabled={isSubmitting}
-                  />
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1 text-sm">Телефон</label>
+                    <input 
+                      type="tel" 
+                      required 
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
+                      placeholder="+7 (---) --- -- --"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-700 font-semibold mb-1 text-sm">Email</label>
+                    <input 
+                      type="email" 
+                      required 
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
+                      placeholder="example@mail.ru"
+                      disabled={isSubmitting}
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-700 font-semibold mb-2">Интересующая услуга</label>
+                  <label className="block text-slate-700 font-semibold mb-1 text-sm">Интересующая услуга</label>
                   <select 
                     value={interest}
                     onChange={(e) => setInterest(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
+                    className="w-full px-4 py-2.5 rounded-lg bg-white border border-slate-200 focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/20 outline-none transition-all text-slate-900"
                     disabled={isSubmitting}
                   >
                     <optgroup label="Основные услуги">
@@ -180,7 +195,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ services = [], selectedServic
                       disabled={isSubmitting}
                     />
                   </div>
-                  <label htmlFor="privacy-policy" className="text-sm text-slate-500 leading-tight cursor-pointer">
+                  <label htmlFor="privacy-policy" className="text-xs text-slate-500 leading-tight cursor-pointer">
                     Я соглашаюсь с{' '}
                     <span 
                       onClick={(e) => {

@@ -13,7 +13,7 @@ export interface ServiceItem {
     details?: string;
     exampleImage?: string;
   }[];
-  orderIndex?: number; // Added for ordering
+  orderIndex?: number;
 }
 
 export interface ServicePackage {
@@ -24,7 +24,6 @@ export interface ServicePackage {
   description: string;
   features: string[];
   isPopular?: boolean;
-  // Detailed fields
   fullDescription: string;
   timeline: string;
   benefits: { title: string; desc: string }[];
@@ -52,7 +51,7 @@ export interface CaseStudy {
   challenge?: string;
   solution?: string;
   fullDescription?: string;
-  serviceId?: string; // Linked service ID
+  serviceId?: string;
 }
 
 export interface TeamMember {
@@ -67,6 +66,7 @@ export interface Lead {
   id: string;
   name: string;
   phone: string;
+  email?: string;
   service: string;
   status: 'new' | 'contacted' | 'archived';
   date: string;
@@ -77,7 +77,7 @@ export interface Popup {
   title: string;
   text: string;
   imageUrl?: string;
-  imageWidth?: number; // percentage
+  imageWidth?: number;
   hasForm: boolean;
   isActive: boolean;
   delaySeconds: number;
@@ -87,7 +87,7 @@ export interface BlogPost {
   id: string;
   title: string;
   excerpt: string;
-  content: string; // HTML
+  content: string;
   image: string;
   category: string;
   date: string;
@@ -110,9 +110,18 @@ export interface MailConfig {
   enabled: boolean;
 }
 
+export interface HomeContent {
+  heroTitle?: string;
+  heroSubTitle?: string;
+  heroDescription?: string;
+  aboutPreviewTitle?: string;
+  aboutPreviewText1?: string;
+  aboutPreviewText2?: string;
+}
+
 export interface SiteSettings {
   favicon?: string; 
-  logo?: string; // URL to logo
+  logo?: string;
   socials?: {
     vk?: string;
     telegram?: string;
@@ -123,12 +132,13 @@ export interface SiteSettings {
   footerCode: string; 
   seo: Record<string, PageSEO>;
   mailConfig?: MailConfig;
+  homeContent?: HomeContent;
 }
 
 export interface StoredImage {
   id: string;
   name: string;
-  data: string; // base64
+  data: string;
   date: string;
 }
 

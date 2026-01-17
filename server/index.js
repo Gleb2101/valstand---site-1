@@ -1,3 +1,4 @@
+
 import express from 'express';
 import mysql from 'mysql2/promise';
 import cors from 'cors';
@@ -48,7 +49,8 @@ const connectDB = async () => {
 
 const initTables = async (connection) => {
     try {
-        await connection.query(`CREATE TABLE IF NOT EXISTS leads (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), phone VARCHAR(255), service VARCHAR(255), status VARCHAR(50), date DATETIME)`);
+        // Добавлен email
+        await connection.query(`CREATE TABLE IF NOT EXISTS leads (id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), phone VARCHAR(255), email VARCHAR(255), service VARCHAR(255), status VARCHAR(50), date DATETIME)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS cases (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS services (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS packages (id VARCHAR(255) PRIMARY KEY, title VARCHAR(255), data LONGTEXT)`);
@@ -60,6 +62,14 @@ const initTables = async (connection) => {
         }
         await connection.query(`CREATE TABLE IF NOT EXISTS settings (setting_key VARCHAR(255) PRIMARY KEY, data LONGTEXT)`);
         await connection.query(`CREATE TABLE IF NOT EXISTS categories (name VARCHAR(255) PRIMARY KEY)`);
+        
+        // Попытка добавить колонку email если таблица уже создана без неё
+        try {
+            await connection.query(`ALTER TABLE leads ADD COLUMN email VARCHAR(255)`);
+        } catch (e) {
+            // Колонка уже существует, игнорируем
+        }
+
     } catch (e) { console.error("Table init error:", e.message); }
 };
 
@@ -88,6 +98,11 @@ const createCrudHandlers = (table) => {
         if (table === 'blog_posts') await pool.query(`INSERT INTO ${table} (id, title, category, data) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), category=VALUES(category), data=VALUES(data)`, [item.id, item.title, item.category, dataStr]);
         else if (['cases', 'services', 'packages'].includes(table)) await pool.query(`INSERT INTO ${table} (id, title, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE title=VALUES(title), data=VALUES(data)`, [item.id, item.title, dataStr]);
         else if (table === 'images') await pool.query(`INSERT INTO ${table} (id, name, data) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE name=VALUES(name), data=VALUES(data)`, [item.id, item.name, item.data]);
+        else if (table === 'leads') {
+           // Специальная обработка для лидов с плоской структурой
+           await pool.query(`INSERT INTO leads (id, name, phone, email, service, status, date) VALUES (?, ?, ?, ?, ?, ?, ?)`, 
+           [item.id, item.name, item.phone, item.email || '', item.service, item.status, item.date]);
+        }
         else await pool.query(`INSERT INTO ${table} (id, data) VALUES (?, ?) ON DUPLICATE KEY UPDATE data=VALUES(data)`, [item.id, dataStr]);
         res.json({ success: true });
     });
@@ -105,6 +120,7 @@ createCrudHandlers('images');
 createCrudHandlers('blog_posts');
 createCrudHandlers('services'); 
 createCrudHandlers('packages'); 
+createCrudHandlers('leads'); 
 
 app.get('/api/settings', dbCheck, async (req, res) => {
     const [rows] = await pool.query('SELECT * FROM settings WHERE setting_key = "global"');
@@ -116,7 +132,6 @@ app.post('/api/settings', dbCheck, async (req, res) => {
 });
 
 // --- DYNAMIC SEO FILES ---
-
 app.get('/robots.txt', (req, res) => {
     const host = req.get('host');
     const protocol = req.headers['x-forwarded-proto'] || req.protocol;
@@ -139,7 +154,6 @@ app.get('/sitemap.xml', async (req, res) => {
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
 
-    // Static Pages
     const staticPages = ['', '/services', '/cases', '/blog', '/about', '/contact', '/privacy'];
     staticPages.forEach(p => {
         xml += `
@@ -153,7 +167,6 @@ app.get('/sitemap.xml', async (req, res) => {
 
     if (pool) {
         try {
-            // Services
             const [services] = await pool.query('SELECT id FROM services');
             services.forEach(s => {
                 xml += `
@@ -163,8 +176,6 @@ app.get('/sitemap.xml', async (req, res) => {
     <priority>0.7</priority>
   </url>`;
             });
-
-            // Packages
             const [packages] = await pool.query('SELECT id FROM packages');
             packages.forEach(p => {
                 xml += `
@@ -174,8 +185,6 @@ app.get('/sitemap.xml', async (req, res) => {
     <priority>0.7</priority>
   </url>`;
             });
-
-            // Cases
             const [cases] = await pool.query('SELECT id FROM cases');
             cases.forEach(c => {
                 xml += `
@@ -185,8 +194,6 @@ app.get('/sitemap.xml', async (req, res) => {
     <priority>0.6</priority>
   </url>`;
             });
-
-            // Blog
             const [posts] = await pool.query('SELECT id FROM blog_posts');
             posts.forEach(b => {
                 xml += `
@@ -204,7 +211,6 @@ app.get('/sitemap.xml', async (req, res) => {
     res.send(xml);
 });
 
-// --- STATIC FILES & PURE SERVER-SIDE SEO ---
 app.use(express.static(distPath, { index: false }));
 
 app.get('*', async (req, res) => {
@@ -217,7 +223,6 @@ app.get('*', async (req, res) => {
     const siteUrl = `${protocol}://${host}`;
     const fullUrl = `${siteUrl}${req.originalUrl}`;
 
-    // Default SEO values
     let seo = {
         title: 'Valstand | Маркетинговое Агентство',
         description: 'Комплексное маркетинговое агентство Valstand: Таргет, SEO, Контент-стратегии. Современные решения для бизнеса.',
@@ -229,32 +234,24 @@ app.get('*', async (req, res) => {
         if (pool) {
             const [settingsRows] = await pool.query('SELECT data FROM settings WHERE setting_key = "global"');
             const settings = settingsRows.length > 0 ? JSON.parse(settingsRows[0].data) : {};
-            
             const rawPath = req.path.replace(/\/$/, ""); 
             const urlPath = rawPath === "" ? "/" : rawPath;
-            
             let pageKey = urlPath === "/" ? "home" : urlPath.substring(1);
             let dynamicId = '';
             let table = '';
-
             if (urlPath.startsWith('/services/')) { dynamicId = urlPath.split('/')[2]; pageKey = `service:${dynamicId}`; table = 'services'; }
             else if (urlPath.startsWith('/packages/')) { dynamicId = urlPath.split('/')[2]; pageKey = `package:${dynamicId}`; table = 'packages'; }
             else if (urlPath.startsWith('/cases/')) { dynamicId = urlPath.split('/')[2]; pageKey = `case:${dynamicId}`; table = 'cases'; }
             else if (urlPath.startsWith('/blog/')) { dynamicId = urlPath.split('/')[2]; pageKey = `blog:${dynamicId}`; table = 'blog_posts'; }
-
-            // 1. Try manual SEO from Admin Panel
             const manualSeo = settings.seo?.[pageKey];
             if (manualSeo) {
                 if (manualSeo.title) seo.title = manualSeo.title;
                 if (manualSeo.description) seo.description = manualSeo.description;
                 if (manualSeo.keywords) seo.keywords = manualSeo.keywords;
                 if (manualSeo.ogImage) {
-                    // Force Absolute URL for images (Messengers requirement)
                     seo.ogImage = manualSeo.ogImage.startsWith('http') ? manualSeo.ogImage : `${siteUrl}${manualSeo.ogImage.startsWith('/') ? '' : '/'}${manualSeo.ogImage}`;
                 }
             } 
-            
-            // 2. Fallback to dynamic content if no manual SEO
             if ((!manualSeo || !manualSeo.title) && table && dynamicId) {
                 const [itemRows] = await pool.query(`SELECT data FROM ${table} WHERE id = ?`, [dynamicId]);
                 if (itemRows.length > 0) {
@@ -269,19 +266,13 @@ app.get('*', async (req, res) => {
         }
     } catch (e) { console.error("SEO Error:", e); }
 
-    // --- REPLACEMENT ENGINE ---
     html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${seo.title}</title>`);
-    
     const injectMeta = (htmlContent, attrName, attrVal, content) => {
         const regex = new RegExp(`<meta\\s+[^>]*?${attrName}=["']${attrVal}["'][^>]*?>`, "i");
         const newTag = `<meta ${attrName}="${attrVal}" content="${content}">`;
-        if (regex.test(htmlContent)) {
-            return htmlContent.replace(regex, newTag);
-        } else {
-            return htmlContent.replace(/<\/head>/i, `${newTag}\n</head>`);
-        }
+        if (regex.test(htmlContent)) return htmlContent.replace(regex, newTag);
+        return htmlContent.replace(/<\/head>/i, `${newTag}\n</head>`);
     };
-
     html = injectMeta(html, 'name', 'description', seo.description);
     html = injectMeta(html, 'name', 'keywords', seo.keywords);
     html = injectMeta(html, 'property', 'og:title', seo.title);
@@ -291,7 +282,6 @@ app.get('*', async (req, res) => {
     html = injectMeta(html, 'name', 'twitter:title', seo.title);
     html = injectMeta(html, 'name', 'twitter:description', seo.description);
     html = injectMeta(html, 'name', 'twitter:image', seo.ogImage);
-
     res.send(html);
 });
 
