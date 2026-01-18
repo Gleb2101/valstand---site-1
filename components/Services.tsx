@@ -58,7 +58,7 @@ const Services: React.FC<ServicesProps> = ({ services, packages, onSelectService
             {services.map((service, index) => (
               <ScrollReveal key={service.id} delay={index * 100}>
                 <div 
-                  className="group glass-panel p-8 rounded-2xl hover:bg-white transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col h-full"
+                  className="group glass-panel p-8 rounded-2xl border border-slate-200 hover:bg-white hover:border-brand-orange transition-all duration-300 hover:shadow-xl hover:-translate-y-1 flex flex-col h-full"
                 >
                   <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center text-brand-orange mb-6 group-hover:scale-110 transition-transform duration-300 border border-slate-200">
                     {renderIcon(service.icon)}

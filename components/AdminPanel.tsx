@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 // Fix: Added missing 'Share2' to the lucide-react imports
-import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package, ExternalLink, Calendar, Star, Clock, List, ArrowUp, ArrowDown, Smile, Home, Share2 } from 'lucide-react';
+import { Lock, LayoutDashboard, Users, MessageSquare, Briefcase, Save, Trash2, Plus, LogOut, Settings, Layers, Search, Image as ImageIcon, FileText, X, Target, ChevronUp, ChevronDown, RefreshCw, Database, FileCode, Mail, AlertCircle, CheckCircle, Package, ExternalLink, Calendar, Star, Clock, List, ArrowUp, ArrowDown, Smile, Home, Share2, ClipboardList } from 'lucide-react';
 import { dataManager } from '../services/dataManager';
 import { CaseStudy, Testimonial, Lead, TeamMember, Popup, SiteSettings, BlogPost, ServiceItem, ServicePackage, HomeContent } from '../types';
 import { PACKAGES, SERVICES, CASES, TEAM_MEMBERS, TESTIMONIALS, BLOG_POSTS, BLOG_CATEGORIES } from '../constants';
@@ -494,6 +494,57 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onBack }) => {
                                         </div>
                                     ))}
                                     <button type="button" onClick={() => setEditingService({...editingService, benefits: [...(editingService.benefits || []), {title: '', desc: ''}]})} className="text-sm font-bold text-brand-orange flex items-center gap-1 hover:underline"><Plus size={16}/> Добавить преимущество</button>
+                                </div>
+                            </div>
+
+                            <div className="bg-slate-50 p-4 rounded-xl border">
+                                <h4 className="font-bold mb-4 flex items-center gap-2 text-slate-700"><ClipboardList size={18}/> Этапы работы (Как мы работаем)</h4>
+                                <div className="space-y-6">
+                                    {(editingService.process || []).map((step, idx) => (
+                                        <div key={idx} className="p-4 bg-white border rounded-lg relative space-y-4">
+                                            <div className="flex justify-between items-center border-b pb-2">
+                                                <span className="font-bold text-brand-orange">Этап {idx + 1}</span>
+                                                <div className="flex gap-2">
+                                                    <button type="button" onClick={() => {
+                                                        if (idx === 0) return;
+                                                        const newProcess = [...editingService.process];
+                                                        [newProcess[idx], newProcess[idx-1]] = [newProcess[idx-1], newProcess[idx]];
+                                                        setEditingService({...editingService, process: newProcess});
+                                                    }} disabled={idx === 0} className="p-1 hover:bg-slate-100 rounded disabled:opacity-30"><ChevronUp size={16}/></button>
+                                                    <button type="button" onClick={() => {
+                                                        if (idx === editingService.process.length - 1) return;
+                                                        const newProcess = [...editingService.process];
+                                                        [newProcess[idx], newProcess[idx+1]] = [newProcess[idx+1], newProcess[idx]];
+                                                        setEditingService({...editingService, process: newProcess});
+                                                    }} disabled={idx === editingService.process.length - 1} className="p-1 hover:bg-slate-100 rounded disabled:opacity-30"><ChevronDown size={16}/></button>
+                                                    <button type="button" onClick={() => setEditingService({...editingService, process: editingService.process.filter((_, i) => i !== idx)})} className="text-red-500 p-1 hover:bg-red-50 rounded"><Trash2 size={16}/></button>
+                                                </div>
+                                            </div>
+                                            <div className="grid md:grid-cols-2 gap-4">
+                                                <input placeholder="Название этапа" className="w-full p-2 border rounded text-sm font-bold" value={step.step} onChange={e => {
+                                                    const newProcess = [...editingService.process];
+                                                    newProcess[idx] = { ...newProcess[idx], step: e.target.value };
+                                                    setEditingService({...editingService, process: newProcess});
+                                                }} />
+                                                <input placeholder="Краткое описание" className="w-full p-2 border rounded text-sm" value={step.desc} onChange={e => {
+                                                    const newProcess = [...editingService.process];
+                                                    newProcess[idx] = { ...newProcess[idx], desc: e.target.value };
+                                                    setEditingService({...editingService, process: newProcess});
+                                                }} />
+                                            </div>
+                                            <textarea placeholder="Подробное описание этапа (отображается при раскрытии)" className="w-full p-2 border rounded text-sm h-24" value={step.details || ''} onChange={e => {
+                                                const newProcess = [...editingService.process];
+                                                newProcess[idx] = { ...newProcess[idx], details: e.target.value };
+                                                setEditingService({...editingService, process: newProcess});
+                                            }} />
+                                            <ImagePicker label="Пример реализации (картинка)" value={step.exampleImage || ''} onChange={url => {
+                                                const newProcess = [...editingService.process];
+                                                newProcess[idx] = { ...newProcess[idx], exampleImage: url };
+                                                setEditingService({...editingService, process: newProcess});
+                                            }} />
+                                        </div>
+                                    ))}
+                                    <button type="button" onClick={() => setEditingService({...editingService, process: [...(editingService.process || []), {step: '', desc: '', details: '', exampleImage: ''}]})} className="text-sm font-bold text-brand-orange flex items-center gap-1 hover:underline"><Plus size={16}/> Добавить этап</button>
                                 </div>
                             </div>
 
